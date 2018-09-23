@@ -10,6 +10,7 @@ class callback_type(enum.Enum):
     SUB = 0
     COM = 1
     PER = 2
+    ONC = 3
 
 class callback():
     def __init__(self, func, ctype, kwargs, path):
@@ -27,6 +28,7 @@ class callback():
         self.subreddit = None
         self.period = None
 
+        # Check callback type and parse parameters
         if ctype == callback_type.SUB:
             if kwargs and 'subreddit' in kwargs:
                 self.subreddit = kwargs['subreddit']
@@ -36,6 +38,8 @@ class callback():
         elif kwargs and ctype == callback_type.PER:
             if 'period' in kwargs:
                 self.period = kwargs['period']
+            if 'first' in kwargs:
+                self.first = kwargs['first']
 
 def add_callback(obj):
     """
@@ -90,6 +94,22 @@ def comment(*args, **kwargs):
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
         add_callback(callback(args[0], callback_type.COM, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+
+def once(*args, **kwargs):
+    """
+    Comment hook
+    """
+    def _command_hook(func):
+        add_callback(callback(func, callback_type.ONC, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_callback(callback(args[0], callback_type.ONC, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)

@@ -4,13 +4,13 @@ import importlib
 import threading
 import logging
 import time
-import datetime
 
 from modbot.reloader import PluginReloader
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks
 from modbot.hook import callback_type
+from modbot import utils
 
 logger = logging.getLogger('plugin')
 logger.setLevel(logging.DEBUG)
@@ -21,15 +21,21 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 
+fh = logging.FileHandler("bot.log")
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+
 logger.addHandler(ch)
+logger.addHandler(fh)
 
 class plugin_manager():
-
-    def __init__(self, path_list = None, reddit = None):
+    def __init__(self, path_list=None, reddit=None, with_reload=False, bot_config={}):
         """
         Class that manages plugins from a given list of paths.
         :param path_list: list of folders relative to the location from where
-        the bot was launched.
+        :param reddit: reddit instance
+        :param with_reload: True if plugin reloading shall be enabled
+        :param bot_config: bot config data
         """
         self.modules = []
         self.callbacks_peri = []
@@ -39,6 +45,8 @@ class plugin_manager():
         self.watch_threads = []
         self.per_last_exec = {}
         self.reddit = reddit
+        self.config = bot_config
+        self.with_reload = with_reload
 
         # Get notifications from the hook module
         callbacks.append(self.add_callback)
@@ -46,13 +54,25 @@ class plugin_manager():
         for path in path_list:
             self.load_plugins(path)
 
-        self.reloader = PluginReloader(self)
-        self.reloader.start(path_list)
+        # Only use reloading in debug
+        if with_reload:
+            self.reloader = PluginReloader(self)
+            self.reloader.start(path_list)
 
     def add_callback(self, func):
+        """
+        Add a callback function that was loaded from a plugin file
+        :param func: function to add
+        """
         self.load_callbacks([func])
 
     def load_plugin(self, fname):
+        """
+        Load a whole plugin file
+        :param fname: file name to load
+        """
+
+        # Try unloading the file first
         self.unload_plugin(fname)
         self._load_plugin(fname)
 
@@ -64,13 +84,19 @@ class plugin_manager():
         basename = os.path.basename(fname)
         pfile = os.path.splitext(fname)[0]
 
+        # Build file name
         plugin_name = "%s.%s" % (os.path.basename(os.path.dirname(fname)), basename)
         plugin_name = plugin_name.replace(".py", "")
 
         try:
+            # Import the file
             plugin_module = importlib.import_module(plugin_name)
+
+            # If file was previously imported, reload
             if plugin_module in self.modules:
                 plugin_module = importlib.reload(plugin_module)
+
+            # Return the imported file
             return plugin_module
         except Exception as e:
             import traceback
@@ -113,6 +139,8 @@ class plugin_manager():
         """
         load a list of callbacks
         """
+
+        # Check each callback type
         for cbk in cbk_list:
             if cbk.ctype == callback_type.SUB:
                 self.callbacks_subs.append(cbk)
@@ -120,6 +148,15 @@ class plugin_manager():
                 self.callbacks_coms.append(cbk)
             elif cbk.ctype == callback_type.PER:
                 self.callbacks_peri.append(cbk)
+                # If it's periodic, check if the first call should be delayed
+                if hasattr(cbk, "first"):
+                    first = int(cbk.first)
+                    period = int(cbk.period)
+                    # Put it in the last executed queue, as if it were executed
+                    self.per_last_exec[cbk] = utils.utcnow() - (period - first)
+            elif cbk.ctype == callback_type.ONC:
+                # If callback is of type once, call it now
+                cbk.func(self, self.reddit)
 
 
     def create_periodic_thread(self, reddit):
@@ -139,17 +176,19 @@ class plugin_manager():
         Trigger periodic events
         """
         while True:
-            tnow = datetime.datetime.now().timestamp()
+            tnow = utils.utcnow()
 
+            # Go through periodic list
             for el in self.callbacks_peri:
+                # If it was previously executed, check its time delta
                 if el in self.per_last_exec:
                     if self.per_last_exec[el] + int(el.period) < tnow:
-                        #logger.debug("triggering " + str(el))
+                        logger.debug("triggering " + str(el.func))
 
                         pthread = threading.Thread(
                                 name="periodic",
                                 target = el.func,
-                                args=(reddit,))
+                                args=(self, reddit))
 
                         pthread.setDaemon(True)
                         pthread.start()
@@ -157,10 +196,12 @@ class plugin_manager():
                         self.per_last_exec[el] = tnow
 
                 else:
+                    logger.debug("triggering " + str(el.func))
+                    # Else run it now
                     pthread = threading.Thread(
                         name="periodic",
                         target = el.func,
-                        args=(reddit,))
+                        args=(self, reddit))
 
                     pthread.setDaemon(True)
                     pthread.start()
