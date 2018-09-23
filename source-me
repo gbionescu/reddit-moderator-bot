@@ -1,0 +1,1 @@
+while true; do timeout 6h python3 moderator-bot.py 2>&1 | tee bot-out.log; sleep 1; done
