@@ -174,17 +174,18 @@ class submgr():
                     return
 
                 # Has the user updated the flair?
-                if temp.link_flair_text is None and evt.mdata <= 3:
-                    evt.sub.author.message("Flair post", resolved_msg)
-                    logger.debug("Warning: %s, metadata %s" % (short_url, str(evt.mdata)))
-                else:
-                    logger.info("User flaired %s, after %d messages!" % (short_url, int(evt.mdata) - 1))
+                if evt.mdata < 4:
+                    if temp.link_flair_text is None:
+                        evt.sub.author.message("Flair post", resolved_msg)
+                        logger.debug("Warning: %s, metadata %s" % (short_url, str(evt.mdata)))
+                    else:
+                        logger.info("User flaired %s, after %d messages!" % (short_url, int(evt.mdata) - 1))
 
-                    # Remove future checks for this submission
-                    for fevt in self.sched:
-                        if fevt.sub.id == evt.sub.id:
-                            logger.debug("Removing future event for %s" % fevt.sub.id)
-                            self.sched.remove(fevt)
+                        # Remove future checks for this submission
+                        for fevt in self.sched:
+                            if fevt.sub.id == evt.sub.id:
+                                logger.debug("Removing future event for %s" % fevt.sub.id)
+                                self.sched.remove(fevt)
 
                 # Try adding auto flair
                 if temp.link_flair_text is None and evt.mdata == 4:
