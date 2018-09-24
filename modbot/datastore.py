@@ -20,6 +20,9 @@ class dslist():
     def __str__(self):
         return str(self.data)
 
+    def __len__(self):
+        return len(self.data)
+
     def sync(self):
         do_sync(self, self.name)
 

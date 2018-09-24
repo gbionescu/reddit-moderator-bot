@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 import logging
 import subprocess
 import configparser
+import datetime
 logger = logging.getLogger("plugin")
 
 SEC_IN_MIN = 60
@@ -112,6 +113,12 @@ class submgr():
         self.wmsg = warn_msg
         self.aflair = autoflair
 
+    def get_evts(self):
+        return self.sched
+
+    def get_subs(self):
+        return self.slist
+
     def add_sub(self, sub):
         # Only schedule notifications if it was not seen before
         if sub not in self.slist:
@@ -189,6 +196,7 @@ class submgr():
 
                 # Try adding auto flair
                 if temp.link_flair_text is None and evt.mdata == 4:
+                    logger.info("Trying autoflair for %s" % shorturl)
                     proposed_flair = None
 
                     # Check each autoflair block until one returns True
@@ -260,8 +268,7 @@ def update_wiki(bot, reddit):
             logger.info("Wiki page is ok")
         except:
             logger.info("Wiki error!")
-            import traceback
-            print(traceback.format_exc())
+            raise
 
 @hook.once()
 def init_plugin(bot, reddit):
@@ -287,6 +294,32 @@ def update_botlog(bot, reddit):
     logdata = "    " + logdata.replace("\n", "\n    ")
 
     reddit.subreddit(debug_sub).wiki['roautomoderatorlog'].edit(logdata)
+
+    # Update event queue page
+    evts = smgr.get_evts()
+    evt_log = ""
+
+    evts_sort = sorted(evts, key=lambda i: i.time)
+
+    for evt in evts_sort:
+        evt_log = "    [%s] %s metadata %d / %s\n" % \
+                (datetime.datetime.utcfromtimestamp(evt.time), "https://redd.it/" + evt.sub.id, evt.mdata, evt.sub.permalink) + evt_log
+
+    reddit.subreddit(debug_sub).wiki['eventqueue'].edit(evt_log)
+
+    # Update sub queue page
+    subs = smgr.get_subs()
+    sub_log = ""
+
+    subs_sort = sorted(subs, key=lambda i: i.created_utc)
+
+    for sub in subs_sort:
+        sub_log = "    [%s] %s / %s\n" % \
+                (datetime.datetime.utcfromtimestamp(sub.created_utc), \
+                        "https://redd.it/" + sub.id, \
+                        sub.permalink) + sub_log
+
+    reddit.subreddit(debug_sub).wiki['sublog'].edit(sub_log)
 
 @hook.submission(subreddit='romania')
 def call_new_sub(reddit, subreddit, submission):
