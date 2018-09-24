@@ -1,2 +1,5 @@
 *.swp
 __pycache__
+*.log
+*.db
+*.ini
