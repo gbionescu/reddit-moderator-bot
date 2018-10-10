@@ -43,10 +43,14 @@ class plugin_manager():
         self.callbacks_coms = []
 
         self.watch_threads = []
+        self.plugin_threads = []
         self.per_last_exec = {}
         self.reddit = reddit
         self.config = bot_config
         self.with_reload = with_reload
+
+        # Set start time
+        self.start_time = utils.utcnow()
 
         # Get notifications from the hook module
         callbacks.append(self.add_callback)
@@ -148,12 +152,6 @@ class plugin_manager():
                 self.callbacks_coms.append(cbk)
             elif cbk.ctype == callback_type.PER:
                 self.callbacks_peri.append(cbk)
-                # If it's periodic, check if the first call should be delayed
-                if hasattr(cbk, "first"):
-                    first = int(cbk.first)
-                    period = int(cbk.period)
-                    # Put it in the last executed queue, as if it were executed
-                    self.per_last_exec[cbk] = utils.utcnow() - (period - first)
             elif cbk.ctype == callback_type.ONC:
                 # If callback is of type once, call it now
                 cbk.func(self, self.reddit)
@@ -175,38 +173,47 @@ class plugin_manager():
         """
         Trigger periodic events
         """
+        def trigger_function(el):
+            logger.debug("triggering " + str(el.func))
+
+            pthread = threading.Thread(
+                name="periodic_" + str(el.func),
+                target = el.func,
+                args=(self, reddit))
+
+            pthread.setDaemon(True)
+            pthread.start()
+
+            self.plugin_threads.append(pthread)
+            self.per_last_exec[el] = tnow
+
         while True:
             tnow = utils.utcnow()
 
             # Go through periodic list
             for el in self.callbacks_peri:
-                # If it was previously executed, check its time delta
-                if el in self.per_last_exec:
-                    if self.per_last_exec[el] + int(el.period) < tnow:
-                        logger.debug("triggering " + str(el.func))
+                # Trigger it at the 'first' interval initially
+                if el.first is not None:
+                    if self.start_time + int(el.first) < tnow:
+                        trigger_function(el)
 
-                        pthread = threading.Thread(
-                                name="periodic",
-                                target = el.func,
-                                args=(self, reddit))
+                        # Delete the attribute so that it's not triggered again
+                        el.first = None
+                elif el.period is not None:
+                    # If it was previously executed, check its time delta
+                    if el in self.per_last_exec:
+                        # Check if 'period' has passed since last executed
+                        if self.per_last_exec[el] + int(el.period) < tnow:
+                            trigger_function(el)
+                    else:
+                        trigger_function(el)
 
-                        pthread.setDaemon(True)
-                        pthread.start()
-
-                        self.per_last_exec[el] = tnow
-
+            # Account for threads
+            for thr in self.plugin_threads.copy():
+                if thr.is_alive():
+                    logger.debug("thread %s is still alive" % thr.name)
                 else:
-                    logger.debug("triggering " + str(el.func))
-                    # Else run it now
-                    pthread = threading.Thread(
-                        name="periodic",
-                        target = el.func,
-                        args=(self, reddit))
-
-                    pthread.setDaemon(True)
-                    pthread.start()
-
-                    self.per_last_exec[el] = tnow
+                    self.plugin_threads.remove(thr)
 
             time.sleep(1)
 
