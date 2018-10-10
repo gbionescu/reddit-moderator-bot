@@ -27,6 +27,7 @@ class callback():
 
         self.subreddit = None
         self.period = None
+        self.first = None
 
         # Check callback type and parse parameters
         if ctype == callback_type.SUB:
@@ -71,7 +72,7 @@ def periodic(*args, **kwargs):
     Periodic hook
     """
     def _command_hook(func):
-        if 'period' in kwargs:
+        if 'period' in kwargs or 'first' in kwargs:
             add_callback(callback(func, callback_type.PER, kwargs, inspect.stack()[2][1]))
         return func
 
