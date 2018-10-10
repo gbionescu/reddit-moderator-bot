@@ -6,6 +6,7 @@ import logging
 import subprocess
 import configparser
 import datetime
+import ast
 logger = logging.getLogger("plugin")
 
 SEC_IN_MIN = 60
@@ -73,7 +74,7 @@ class aflair():
 
         # Cycle through the keys and enqueue the conditions
         for key in sdict:
-            arg_list = sdict[key].lower().split(",")
+            arg_list = ast.literal_eval(sdict[key].lower())
 
             if key == "domain":
                 self.conditions.append((self.cond_domain, arg_list))
@@ -88,7 +89,7 @@ class aflair():
                 self.priority = int(sdict[key])
 
             elif key == "flair_css_class":
-                self.flair = sdict[key]
+                self.flair = arg_list
 
     def check(self, sub):
         logger.debug("Checking " + self.name)
@@ -182,21 +183,15 @@ class submgr():
 
                 # Has the user updated the flair?
                 if evt.mdata < 4:
-                    if temp.link_flair_text is None:
+                    if temp.link_flair_text is None or temp.link_flair_text is "":
                         evt.sub.author.message("Flair post", resolved_msg)
                         logger.debug("Warning: %s, metadata %s" % (short_url, str(evt.mdata)))
                     else:
-                        logger.info("User flaired %s, after %d messages!" % (short_url, int(evt.mdata) - 1))
-
-                        # Remove future checks for this submission
-                        for fevt in self.sched:
-                            if fevt.sub.id == evt.sub.id:
-                                logger.debug("Removing future event for %s" % fevt.sub.id)
-                                self.sched.remove(fevt)
+                        logger.info("User flaired %s, after %d messages with %s" % (short_url, int(evt.mdata) - 1, temp.link_flair_text))
 
                 # Try adding auto flair
                 if temp.link_flair_text is None and evt.mdata == 4:
-                    logger.info("Trying autoflair for %s" % shorturl)
+                    logger.info("Trying autoflair for %s" % short_url)
                     proposed_flair = None
 
                     # Check each autoflair block until one returns True
