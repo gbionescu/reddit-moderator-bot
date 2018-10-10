@@ -208,15 +208,15 @@ class plugin_manager():
                     else:
                         trigger_function(el)
 
+            # Wait 1s between checks
+            time.sleep(1)
+
             # Account for threads
             for thr in self.plugin_threads.copy():
                 if thr.is_alive():
                     logger.debug("thread %s is still alive" % thr.name)
                 else:
                     self.plugin_threads.remove(thr)
-
-            time.sleep(1)
-
 
     def watch_subs(self, sub_list):
         """
