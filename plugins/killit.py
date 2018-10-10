@@ -25,8 +25,7 @@ def check_inbox(bot, reddit):
 
             if item.body == reset_body and item.author in reset_authors:
                 logger.info("Exiting")
-                import os
-                os.kill(os.getpid(), 9)
+                kill_me()
 
 
 @hook.periodic(first=str(selfkill_int))
