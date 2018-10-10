@@ -18,10 +18,9 @@ def check_inbox(bot, reddit):
     reset_authors = bot.config["reset"]["authors"].replace(" ", "").split(",")
 
     for item in reddit.inbox.unread(limit=None):
-        print(item)
+        item.mark_read()
         if isinstance(item, Message):
             logger.info("Got message from %s: %s/%s" % (item.author, item.subject, item.body))
-            item.mark_read()
 
             if item.body == reset_body and item.author in reset_authors:
                 logger.info("Exiting")
