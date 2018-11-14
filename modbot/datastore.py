@@ -1,7 +1,8 @@
-import shelve
+import os
+import pickle
 
-DS_NAME = "botdata.ds"
-ds = shelve.open(DS_NAME)
+DS_LOC = "data/"
+os.system("mkdir -p %s" % DS_LOC)
 
 class dslist():
     def __init__(self, name):
@@ -50,19 +51,14 @@ class dslist():
         return self.data
 
 def do_sync(obj, name):
-    ds = shelve.open(DS_NAME)
-    if name in ds:
-        del ds[name]
-
-    ds[name] = obj
-    ds.close()
+    dso = open(DS_LOC + name + ".data", "wb")
+    dso.write(pickle.dumps(obj))
+    dso.close()
 
 def get_obj(name):
-    ds = shelve.open(DS_NAME)
-    if name in ds:
-        obj = ds[name]
-    else:
-        obj = None
-    ds.close()
-
-    return obj
+    dso = None
+    try:
+        data = pickle.load(open(DS_LOC + name + ".data", "rb"))
+        return data
+    except:
+        return None
