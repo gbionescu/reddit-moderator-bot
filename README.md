@@ -17,6 +17,6 @@ Config file example:
 reload = true
 
 [config]
-# Configure what subreddits to watch for events
+# Configure what subreddits to watch for events (e.g. /r/all)
 watch_subs = all
 ```
