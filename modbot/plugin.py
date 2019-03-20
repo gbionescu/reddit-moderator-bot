@@ -292,6 +292,12 @@ class plugin_manager():
             self.feed_comms(comment.subreddit, comment)
 
     def call_plugin_func(self, element, args):
+        """
+        Call a plugin function
+
+        :param element: plugin object containing information about what's to be called
+        :param args: arguments that can be passed on to this function call
+        """
         cargs = {}
 
         for farg in element.args:
