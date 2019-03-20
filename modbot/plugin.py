@@ -11,6 +11,7 @@ from modbot.reloader import PluginReloader
 from modbot.hook import callbacks
 from modbot.hook import callback_type
 from modbot import utils
+from plugins.killit import selfkill_int
 
 logger = logging.getLogger('plugin')
 logger.setLevel(logging.DEBUG)
@@ -49,30 +50,41 @@ class plugin_manager():
         self.config = bot_config
         self.with_reload = with_reload
 
+        # Fill the standard parameter list
+        self.args = {}
+        self.args["bot"] = self
+        self.args["reddit"] = self.reddit
+        self.args["config"] = self.config
+
         # Set start time
         self.start_time = utils.utcnow()
 
         # Get notifications from the hook module
-        callbacks.append(self.add_callback)
+        callbacks.append(self.add_plugin_function)
 
         for path in path_list:
             self.load_plugins(path)
+
+        # Create the periodic thread to trigger periodic events
+        self.create_periodic_thread(self.reddit)
 
         # Only use reloading in debug
         if with_reload:
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
-    def add_callback(self, func):
+    def add_plugin_function(self, func):
         """
-        Add a callback function that was loaded from a plugin file
+        Add a function that was loaded from a plugin file
+
         :param func: function to add
         """
-        self.load_callbacks([func])
+        self.load_plugin_functions([func])
 
     def load_plugin(self, fname):
         """
-        Load a whole plugin file
+        Wrapper for loading a plugin. First unloads and the loads the given file.
+
         :param fname: file name to load
         """
 
@@ -83,10 +95,12 @@ class plugin_manager():
     def _load_plugin(self, fname):
         """
         Load a plugin.
+
+        :param file: plugin file to load
+        :return: importlib import_module instance
         """
         logger.debug("Loading %s" % fname)
         basename = os.path.basename(fname)
-        pfile = os.path.splitext(fname)[0]
 
         # Build file name
         plugin_name = "%s.%s" % (os.path.basename(os.path.dirname(fname)), basename)
@@ -111,6 +125,8 @@ class plugin_manager():
     def unload_plugin(self, fname):
         """
         Unload a plugin.
+
+        :param fname: unloads a plugin file
         """
 
         def rem_plugin(plist, path):
@@ -129,6 +145,8 @@ class plugin_manager():
     def load_plugins(self, path):
         """
         Load plugins from a specified path.
+
+        :param path: globs over python files in a path and loads each one
         """
 
         plugins = glob.iglob(os.path.join(path, '*.py'))
@@ -136,40 +154,44 @@ class plugin_manager():
             result = self._load_plugin(f)
             self.modules.append(result)
 
-        self.create_periodic_thread(self.reddit)
-
-
-    def load_callbacks(self, cbk_list):
+    def load_plugin_functions(self, func_list):
         """
-        load a list of callbacks
+        Stores a list of plugin functions depending on how each function is
+        triggered: on submissions, on comments, periodic or once.
+
+        :param func_list: list of plugin functions to load
         """
 
         # Check each callback type
-        for cbk in cbk_list:
+        for cbk in func_list:
             if cbk.ctype == callback_type.SUB:
                 self.callbacks_subs.append(cbk)
+
             elif cbk.ctype == callback_type.COM:
                 self.callbacks_coms.append(cbk)
+
             elif cbk.ctype == callback_type.PER:
                 self.callbacks_peri.append(cbk)
+
             elif cbk.ctype == callback_type.ONC:
                 # If callback is of type once, call it now
-                cbk.func(self, self.reddit)
+                self.call_plugin_func(cbk, self.args)
 
 
     def create_periodic_thread(self, reddit):
         """
         Create a thread that launches periodic events
+
+        :param reddit: praw reddit instance passed on to functions
         """
         periodic_thread = threading.Thread(
                 name="pmgr_thread",
-                target=self.periodic_func,
-                args=(reddit,))
+                target=self.periodic_func)
 
         periodic_thread.setDaemon(True)
         periodic_thread.start()
 
-    def periodic_func(self, reddit):
+    def periodic_func(self):
         """
         Trigger periodic events
         """
@@ -178,8 +200,8 @@ class plugin_manager():
 
             pthread = threading.Thread(
                 name="periodic_" + str(el.func),
-                target = el.func,
-                args=(self, reddit))
+                target = self.call_plugin_func,
+                args=(el, self.args,))
 
             pthread.setDaemon(True)
             pthread.start()
@@ -199,6 +221,7 @@ class plugin_manager():
 
                         # Delete the attribute so that it's not triggered again
                         el.first = None
+
                 elif el.period is not None:
                     # If it was previously executed, check its time delta
                     if el in self.per_last_exec:
@@ -222,6 +245,8 @@ class plugin_manager():
         """
         Entry point that tells the plugin manager which subreddits to watch.
         Starts both submissions and comments watchers.
+
+        :param sub_list: list of subreddits to watch
         """
 
         for sub in sub_list:
@@ -229,64 +254,93 @@ class plugin_manager():
             sthread = threading.Thread(
                     name="submissions_%s" % sub,
                     target = self.thread_sub,
-                    args=(self.reddit, sub))
+                    args=(sub,))
             sthread.setDaemon(True)
             sthread.start()
 
             cthread = threading.Thread(
                     name="comments_%s" % sub,
                     target = self.thread_comm,
-                    args=(self.reddit, sub))
+                    args=(sub,))
             cthread.setDaemon(True)
             cthread.start()
 
             self.watch_threads.append(sthread)
             self.watch_threads.append(cthread)
 
-    def thread_sub(self, reddit, sub):
+    def thread_sub(self, sub):
         """
-        Function used in threads that watch submissions
+        Watch submissions and trigger submission events
+
+        :param sub: subreddit to watch
         """
 
-        subreddit = reddit.subreddit(sub)
+        subreddit = self.reddit.subreddit(sub)
 
         for submission in subreddit.stream.submissions():
-            self.feed_sub(reddit, submission.subreddit, submission)
+            self.feed_sub(submission.subreddit, submission)
 
-    def thread_comm(self, reddit, sub):
+    def thread_comm(self, sub):
         """
-        Function used in threads that watch comments
+        Watch comments and trigger comments events
+
+        :param sub: subreddit to watch
         """
 
-        subreddit = reddit.subreddit(sub)
-        subreddit = reddit.subreddit(sub)
+        subreddit = self.reddit.subreddit(sub)
 
         for comment in subreddit.stream.comments():
-            self.feed_comms(reddit, comment, comment.subreddit)
+            self.feed_comms(comment.subreddit, comment)
 
-    def feed_sub(self, reddit, subreddit, submission):
+    def call_plugin_func(self, element, args):
+        cargs = {}
+
+        for farg in element.args:
+            if farg in args.keys():
+                cargs[farg] = args[farg]
+            else:
+                logger.error("Function %s requested %s, but it was not found in %s" % \
+                     (element.func, farg, str(args.keys())))
+                return
+
+        try:
+            element.func(**cargs)
+        except Exception:
+            logging.exception("Exception when running " + str(element.func))
+
+    def feed_sub(self, subreddit, submission):
         """
         Feeds a new submission to the plugin framework. This function calls
         plugins that match the submission.
+
+        :param subreddit: subreddit where the submission was posted
+        :param submission: submission instance
         """
 
         # TODO use a dict
         for el in self.callbacks_subs:
             if el.subreddit == None or el.subreddit == subreddit:
-                try:
-                    el.func(reddit=reddit, subreddit=subreddit, submission=submission)
-                except Exception as e:
-                    logging.exception("Exception when running " + str(el.func))
+                args = self.args.copy()
+                args["subreddit"] = subreddit
+                args["submission"] = submission
+                args["reddit"] = self.reddit
 
-    def feed_comms(self, reddit, comment, sub):
+                self.call_plugin_func(el, args)
+
+    def feed_comms(self, subreddit, comment):
         """
         Feeds a new comment to the plugin framework. This function calls
         plugins that match the comment.
+
+        :param subreddit: subreddit where the comment was posted
+        :param submission: comment instance
         """
 
         for el in self.callbacks_coms:
-            if el.subreddit == None or el.subreddit == sub:
-                try:
-                    el.func(reddit=reddit, subreddit=sub, comment=comment)
-                except Exception as e:
-                    logging.exception("Exception when running " + str(el.func))
+            if el.subreddit == None or el.subreddit == subreddit:
+                args = self.args.copy()
+                args["subreddit"] = subreddit
+                args["comment"] = comment
+                args["reddit"] = self.reddit
+
+                self.call_plugin_func(el, args)
