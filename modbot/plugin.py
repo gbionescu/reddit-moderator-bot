@@ -11,10 +11,9 @@ from modbot.reloader import PluginReloader
 from modbot.hook import callbacks
 from modbot.hook import callback_type
 from modbot import utils
-from plugins.killit import selfkill_int
 
 logger = logging.getLogger('plugin')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
