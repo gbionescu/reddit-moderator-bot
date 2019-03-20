@@ -56,7 +56,6 @@ def do_sync(obj, name):
     dso.close()
 
 def get_obj(name):
-    dso = None
     try:
         data = pickle.load(open(DS_LOC + name + ".data", "rb"))
         return data
