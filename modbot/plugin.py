@@ -5,6 +5,7 @@ import threading
 import logging
 import time
 
+from database.db import db_data
 from modbot.reloader import PluginReloader
 
 # meh method of getting the callback list after loading, but works for now
@@ -13,7 +14,7 @@ from modbot.hook import callback_type
 from modbot import utils
 
 logger = logging.getLogger('plugin')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
@@ -29,13 +30,21 @@ logger.addHandler(ch)
 logger.addHandler(fh)
 
 class plugin_manager():
-    def __init__(self, path_list=None, reddit=None, with_reload=False, bot_config={}):
+    def __init__(self,
+        path_list=None,
+        reddit=None,
+        with_reload=False,
+        bot_config={},
+        watch_subs=[],
+        db_params={}):
         """
         Class that manages plugins from a given list of paths.
-        :param path_list: list of folders relative to the location from where
+        :param path_list: list of folders relative to the location from where to load plugins
         :param reddit: reddit instance
         :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
+        :param watch_subs: subreddits to watch
+        :param db_params: how to log in to the psql server
         """
         self.modules = []
         self.callbacks_peri = []
@@ -49,11 +58,18 @@ class plugin_manager():
         self.config = bot_config
         self.with_reload = with_reload
 
+        # Create DB connection
+        self.db = db_data(
+            "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
+
         # Fill the standard parameter list
         self.args = {}
         self.args["bot"] = self
         self.args["reddit"] = self.reddit
         self.args["config"] = self.config
+        self.args["db"] = self.db
+        self.args["db_submissions"] = self.db.submissions
+        self.args["db_comments"] = self.db.comments
 
         # Set start time
         self.start_time = utils.utcnow()
@@ -71,6 +87,8 @@ class plugin_manager():
         if with_reload:
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
+
+        self.watch_subs(watch_subs)
 
     def add_plugin_function(self, func):
         """
@@ -148,6 +166,7 @@ class plugin_manager():
         :param path: globs over python files in a path and loads each one
         """
 
+        logger.debug("Loading plugins from %s" % path)
         plugins = glob.iglob(os.path.join(path, '*.py'))
         for f in plugins:
             result = self._load_plugin(f)
