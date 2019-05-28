@@ -35,7 +35,7 @@ class db_data():
             Column("retrieved_on",            DateTime),
             Column("controversiality",        Integer),
             Column("gilded",                  Integer),
-            Column("id",                      String),
+            Column("id",                      String, primary_key=True),
             Column("subreddit",               String),
             Column("ups",                     Integer),
             Column("distinguished",           String),
