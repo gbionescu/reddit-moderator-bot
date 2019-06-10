@@ -3,4 +3,5 @@ __pycache__
 *.log
 *.db
 *.ini
+*.pyc
 data/

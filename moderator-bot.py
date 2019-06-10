@@ -1,6 +1,6 @@
-from modbot.bot import bot
+import modbot
 
-bot("reddit-bot.ini")
+modbot.bot("reddit-bot.ini")
 
 while True:
     import time

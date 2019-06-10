@@ -87,8 +87,7 @@ def comment(*args, **kwargs):
     Comment hook
     """
     def _command_hook(func):
-        if 'subreddit' in kwargs:
-            add_plugin_function(plugin_function(func, callback_type.COM, kwargs, inspect.stack()[2][1]))
+        add_plugin_function(plugin_function(func, callback_type.COM, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly

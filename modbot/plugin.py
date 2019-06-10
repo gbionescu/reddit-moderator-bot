@@ -68,8 +68,6 @@ class plugin_manager():
         self.args["reddit"] = self.reddit
         self.args["config"] = self.config
         self.args["db"] = self.db
-        self.args["db_submissions"] = self.db.submissions
-        self.args["db_comments"] = self.db.comments
 
         # Set start time
         self.start_time = utils.utcnow()
