@@ -60,6 +60,8 @@ class db_data():
                 self.ups                    = comment.ups
 
         class DBSubmission(self.db_base):
+            __tablename__ = "submissions"
+
             archived                = Column(Boolean)
             author                  = Column(String)
             author_flair_css_class  = Column(String)
@@ -78,7 +80,7 @@ class db_data():
             over_18                 = Column(Boolean)
             permalink               = Column(String)
             quarantine              = Column(Boolean)
-            retrieved_on            = Column(Integer)
+            retrieved_on            = Column(DateTime)
             score                   = Column(Integer)
             selftext                = Column(String)
             stickied                = Column(Boolean)
@@ -88,7 +90,6 @@ class db_data():
             thumbnail               = Column(String)
             url                     = Column(String)
             ups                     = Column(Integer)
-
 
             def __init__(self, sub):
                 self.archived               = sub.archived
@@ -113,7 +114,7 @@ class db_data():
                 self.score                  = sub.score
                 self.selftext               = sub.selftext
                 self.stickied               = sub.stickied
-                self.subreddit              = sub.subreddit
+                self.subreddit              = sub.subreddit.name
                 self.subreddit_id           = sub.subreddit_id
                 self.title                  = sub.title
                 self.thumbnail              = sub.thumbnail
@@ -128,41 +129,12 @@ class db_data():
         self.create_reddit_tables()
 
     def create_reddit_tables(self):
-        # self.submissions = Table("submissions", self.db_metadata,
-        #     Column("created_utc",             DateTime),
-        #     Column("subreddit",               String),
-        #     Column("author",                  String),
-        #     Column("domain",                  String),
-        #     Column("url",                     String),
-        #     Column("num_comments",            Integer),
-        #     Column("score",                   Integer),
-        #     Column("ups",                     Integer),
-        #     Column("downs",                   Integer),
-        #     Column("title",                   String),
-        #     Column("selftext",                String),
-        #     Column("id",                      String, primary_key=True),
-        #     Column("gilded",                  Integer),
-        #     Column("stickied",                Boolean),
-        #     Column("retrieved_on",            Integer),
-        #     Column("over_18",                 Boolean),
-        #     Column("thumbnail",               String),
-        #     Column("subreddit_id",            String),
-        #     Column("hide_score",              Boolean),
-        #     Column("link_flair_css_class",    String),
-        #     Column("author_flair_css_class",  String),
-        #     Column("archived",                Boolean),
-        #     Column("is_self",                 Boolean),
-        #     Column("permalink",               String),
-        #     Column("author_flair_text",       String),
-        #     Column("quarantine",              Boolean),
-        #     Column("link_flair_text",         String),
-        #     Column("distinguished",           String))
-
         database.metadata.create_all(self.db_engine)
 
     def add_comment(self, comment):
         self.db_session.add(self.DBComment(comment))
         self.db_session.commit()
 
-
-    #def add_submission(self, submission):
+    def add_submission(self, submission):
+        self.db_session.add(self.DBSubmission(submission))
+        self.db_session.commit()
