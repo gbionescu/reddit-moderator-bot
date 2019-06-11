@@ -31,16 +31,16 @@ logger.addHandler(fh)
 
 class plugin_manager():
     def __init__(self,
+        bot_inst,
         path_list=None,
-        reddit=None,
         with_reload=False,
         bot_config={},
         watch_subs=[],
         db_params={}):
         """
         Class that manages plugins from a given list of paths.
+        :param bot_inst: bot instance
         :param path_list: list of folders relative to the location from where to load plugins
-        :param reddit: reddit instance
         :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
         :param watch_subs: subreddits to watch
@@ -54,7 +54,7 @@ class plugin_manager():
         self.watch_threads = []
         self.plugin_threads = []
         self.per_last_exec = {}
-        self.reddit = reddit
+        self.bot = bot_inst
         self.config = bot_config
         self.with_reload = with_reload
 
@@ -65,7 +65,6 @@ class plugin_manager():
         # Fill the standard parameter list
         self.args = {}
         self.args["bot"] = self
-        self.args["reddit"] = self.reddit
         self.args["config"] = self.config
         self.args["db"] = self.db
 
@@ -79,7 +78,7 @@ class plugin_manager():
             self.load_plugins(path)
 
         # Create the periodic thread to trigger periodic events
-        self.create_periodic_thread(self.reddit)
+        self.create_periodic_thread()
 
         # Only use reloading in debug
         if with_reload:
@@ -194,11 +193,9 @@ class plugin_manager():
                 self.call_plugin_func(cbk, self.args)
 
 
-    def create_periodic_thread(self, reddit):
+    def create_periodic_thread(self):
         """
         Create a thread that launches periodic events
-
-        :param reddit: praw reddit instance passed on to functions
         """
         periodic_thread = threading.Thread(
                 name="pmgr_thread",
@@ -291,7 +288,7 @@ class plugin_manager():
         :param sub: subreddit to watch
         """
 
-        subreddit = self.reddit.subreddit(sub)
+        subreddit = self.bot.get_subreddit(sub)
 
         for submission in subreddit.stream.submissions():
             self.feed_sub(submission.subreddit, submission)
@@ -303,7 +300,7 @@ class plugin_manager():
         :param sub: subreddit to watch
         """
 
-        subreddit = self.reddit.subreddit(sub)
+        subreddit = self.bot.get_subreddit(sub)
 
         for comment in subreddit.stream.comments():
             self.feed_comms(comment.subreddit, comment)
@@ -345,7 +342,6 @@ class plugin_manager():
                 args = self.args.copy()
                 args["subreddit"] = subreddit
                 args["submission"] = submission
-                args["reddit"] = self.reddit
 
                 self.call_plugin_func(el, args)
 
@@ -363,6 +359,5 @@ class plugin_manager():
                 args = self.args.copy()
                 args["subreddit"] = subreddit
                 args["comment"] = comment
-                args["reddit"] = self.reddit
 
                 self.call_plugin_func(el, args)
