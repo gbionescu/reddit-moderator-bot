@@ -1,3 +1,4 @@
+import datetime
 from modbot import hook
 
 @hook.submission()
@@ -9,3 +10,10 @@ def call_new_sub(db, submission):
 def call_new_comment(comment, db):
     print("new comment")
     db.add_comment(comment)
+
+def call_me2():
+    print("asd")
+
+@hook.once
+def call_me(schedule_call):
+    schedule_call(call_me2, datetime.datetime.utcnow() + datetime.timedelta(days=1))
