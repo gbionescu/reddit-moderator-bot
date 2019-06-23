@@ -100,7 +100,7 @@ def comment(*args, **kwargs):
 
 def once(*args, **kwargs):
     """
-    Comment hook
+    Once hook
     """
     def _command_hook(func):
         add_plugin_function(plugin_function(func, callback_type.ONC, kwargs, inspect.stack()[1][1]))

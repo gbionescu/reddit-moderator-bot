@@ -30,6 +30,7 @@ logger.addHandler(ch)
 logger.addHandler(fh)
 
 class plugin_manager():
+    # Dictionary of items that can be passed to plugins
     def __init__(self,
         bot_inst,
         path_list=None,
@@ -57,16 +58,17 @@ class plugin_manager():
         self.bot = bot_inst
         self.config = bot_config
         self.with_reload = with_reload
+        self.plugin_args = {}
 
         # Create DB connection
         self.db = db_data(
             "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
-        self.args = {}
-        self.args["bot"] = self
-        self.args["config"] = self.config
-        self.args["db"] = self.db
+        self.add_plugin_arg(self, "bot")
+        self.add_plugin_arg(self.config, "config")
+        self.add_plugin_arg(self.db, "db")
+        self.add_plugin_arg(self.schedule_call, "schedule_call")
 
         # Set start time
         self.start_time = utils.utcnow()
@@ -86,6 +88,16 @@ class plugin_manager():
             self.reloader.start(path_list)
 
         self.watch_subs(watch_subs)
+
+    def add_plugin_arg(self, object, alias):
+        """
+        Register an object as a plugin argument
+        """
+        if alias not in self.plugin_args:
+            self.plugin_args[alias] = object
+
+    def schedule_call(self, func, when, args=[], kwargs={}):
+        self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
 
     def add_plugin_function(self, func):
         """
@@ -190,7 +202,7 @@ class plugin_manager():
 
             elif cbk.ctype == callback_type.ONC:
                 # If callback is of type once, call it now
-                self.call_plugin_func(cbk, self.args)
+                self.call_plugin_func(cbk, self.plugin_args)
 
 
     def create_periodic_thread(self):
@@ -339,7 +351,7 @@ class plugin_manager():
         # TODO use a dict
         for el in self.callbacks_subs:
             if el.subreddit == None or el.subreddit == subreddit:
-                args = self.args.copy()
+                args = self.plugin_args.copy()
                 args["subreddit"] = subreddit
                 args["submission"] = submission
 
@@ -356,7 +368,7 @@ class plugin_manager():
 
         for el in self.callbacks_coms:
             if el.subreddit == None or el.subreddit == subreddit:
-                args = self.args.copy()
+                args = self.plugin_args.copy()
                 args["subreddit"] = subreddit
                 args["comment"] = comment
 

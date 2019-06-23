@@ -18,7 +18,7 @@ class bot():
             self.config.get("reddit", "praw_config_section"),
             user_agent=self.config.get("reddit", "user_agent"))
 
-        # Mark if runnig in test mode
+        # Mark if running in test mode
         self.test_mode = self.config.get("debug", "test_mode", fallback=False)
 
         # Get list of moderated subreddits
