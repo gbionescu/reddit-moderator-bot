@@ -1,11 +1,36 @@
 import database
 import datetime
-from sqlalchemy import create_engine, Table, Column, String, Integer, DateTime, Boolean
+import uuid
+import json
+from sqlalchemy import create_engine, Table, Column, String, Integer, DateTime, Boolean, VARCHAR, TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import MetaData
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.declarative import declarative_base
+
+class JSONEncodedDict(TypeDecorator):
+    """Represents an immutable structure as a json-encoded string.
+
+    Usage::
+
+        JSONEncodedDict(255)
+
+    """
+
+    impl = VARCHAR
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
+
 
 class db_data():
     def __init__(self, db_path):
@@ -121,9 +146,28 @@ class db_data():
                 self.url                    = sub.url
                 self.ups                    = sub.ups
 
+        class DBScheduledEvents(self.db_base):
+            __tablename__ = "scheduled_events"
+            id = Column(String, primary_key=True)
+            file = Column(String)
+            func = Column(String)
+            args = Column(JSONEncodedDict)
+            kwargs = Column(JSONEncodedDict)
+            trigger_time = Column(DateTime)
+            scheduled_time = Column(DateTime)
+
+            def __init__(self, file, func, args, kwargs, trigger_time):
+                self.file = file
+                self.func = func
+                self.args = args
+                self.kwargs = kwargs
+                self.trigger_time = trigger_time
+                self.scheduled_time = datetime.datetime.utcnow()
+                self.id = uuid.uuid4()
 
         self.DBComment = DBComment
         self.DBSubmission = DBSubmission
+        self.DBScheduledEvents = DBScheduledEvents
 
         # Create built-in tables
         self.create_reddit_tables()
@@ -137,4 +181,8 @@ class db_data():
 
     def add_submission(self, submission):
         self.db_session.add(self.DBSubmission(submission))
+        self.db_session.commit()
+
+    def add_sched_event(self, file, func, args, kwargs, trigger_time):
+        self.db_session.add(self.DBScheduledEvents(file, func, args, kwargs, trigger_time))
         self.db_session.commit()
