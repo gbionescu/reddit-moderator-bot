@@ -11,7 +11,7 @@ class bot():
 
         # Load config
         self.config = configparser.ConfigParser()
-        self.config.read("reddit-bot.ini")
+        self.config.read(bot_config_path)
 
         # Create reddit instance
         self.reddit = praw.Reddit(
@@ -19,10 +19,10 @@ class bot():
             user_agent=self.config.get("reddit", "user_agent"))
 
         # Mark if running in test mode
-        self.test_mode = self.config.get("debug", "test_mode", fallback=False)
+        self.in_production = self.config.get("mode", "production", fallback=False)
 
         # Get list of moderated subreddits
-        self.moderated_subs = [i.name for i in self.reddit.user.moderator_subreddits()]
+        self.moderated_subs = [i.display_name for i in self.reddit.user.moderator_subreddits()]
 
         self.pmgr = plugin_manager(
             self,
@@ -32,6 +32,9 @@ class bot():
             watch_subs=self.config.get(section="config", option="watch_subs").split(","),
             db_params=dict(self.config["postgresql"])
         )
+
+    def get_moderated_subs(self):
+        return self.moderated_subs
 
     def get_subreddit(self, sub):
         return self.reddit.subreddit(sub)

@@ -3,6 +3,7 @@ import logging
 import inspect
 
 callbacks = []
+plugins_with_wikis = []
 logger = logging.getLogger('plugin')
 
 @enum.unique
@@ -10,7 +11,8 @@ class callback_type(enum.Enum):
     SUB = 0
     COM = 1
     PER = 2
-    ONC = 3
+    ONL = 3
+    ONS = 4
 
 class plugin_function():
     def __init__(self, func, ctype, kwargs, path):
@@ -42,6 +44,13 @@ class plugin_function():
                 self.period = kwargs['period']
             if 'first' in kwargs:
                 self.first = kwargs['first']
+
+class PluginWiki():
+    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits):
+        self.wiki_page = wiki_page
+        self.description = description
+        self.wiki_change_notifier = wiki_change_notifier
+        self.subreddits = subreddits
 
 def add_plugin_function(obj):
     """
@@ -98,17 +107,38 @@ def comment(*args, **kwargs):
         return lambda func: _command_hook(func)
 
 
-def once(*args, **kwargs):
+def on_load(*args, **kwargs):
     """
-    Once hook
+    On load hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.ONC, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(func, callback_type.ONL, kwargs, inspect.stack()[1][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.ONC, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(args[0], callback_type.ONL, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+    
+def on_start(*args, **kwargs):
+    """
+    On bot start hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.ONS, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.ONS, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def register_configurable_plugin(wiki_page, description, wiki_change_notifier, subreddits = []):
+    """
+    Register a plugin that has its own configuration page
+    """
+    plugins_with_wikis.append(PluginWiki(wiki_page, description, wiki_change_notifier, subreddits))
