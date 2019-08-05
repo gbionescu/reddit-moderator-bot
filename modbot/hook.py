@@ -121,7 +121,7 @@ def on_load(*args, **kwargs):
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
-    
+
 def on_start(*args, **kwargs):
     """
     On bot start hook
@@ -137,7 +137,7 @@ def on_start(*args, **kwargs):
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
 
-def register_configurable_plugin(wiki_page, description, wiki_change_notifier, subreddits = []):
+def register_wiki_page(wiki_page, description, wiki_change_notifier, subreddits = []):
     """
     Register a plugin that has its own configuration page
     """

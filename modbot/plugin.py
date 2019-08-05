@@ -38,35 +38,35 @@ class plugin_manager():
         def __init__(self, subreddit, plugin):
             self.sub = subreddit
             self.plugin = plugin
-            
+
             self.content = ""
             try:
                 self.content = self.sub.wiki[self.plugin.wiki_page].content_md
             except prawcore.exceptions.NotFound:
-                logger.debug("Subreddit %s does not contain wiki %s. Creating it." % 
+                logger.debug("Subreddit %s does not contain wiki %s. Creating it." %
                       (subreddit.display_name, self.plugin.wiki_page))
                 self.sub.wiki[self.plugin.wiki_page].edit(EMPTY_WIKI)
                 self.content = EMPTY_WIKI
-            
+
             self.old_content = self.content
-        
+
         def update_content(self):
             """
             Update page content and return True if changed, False otherwise
             """
             changed = False
             self.content = self.sub.wiki[self.plugin.wiki_page].content_md
-            
+
             if self.content != self.old_content:
                 changed = True
-            
+
             self.old_content = self.content
-            
+
             return changed
-        
+
         def set_content(self, content):
             self.sub.wiki[self.plugin.wiki_page].edit(content)
-    
+
     # Dictionary of items that can be passed to plugins
     def __init__(self,
         bot_inst,
@@ -96,17 +96,17 @@ class plugin_manager():
         self.config = bot_config
         self.with_reload = with_reload
         self.plugin_args = {}
-        
+
         self.watched_wikis = {}
-        
+
         # Functions loaded by plugins
         self.plugin_functions = []
-        
+
         # Dict of subreddit PRAW instances
         self.sub_instances = {}
         for sub in watch_subs + self.bot.get_moderated_subs():
             self.sub_instances[sub] = self.bot.get_subreddit(sub)
-        
+
         # Save the watched subreddits
         self.watched_subs = watch_subs + self.bot.get_moderated_subs()
 
@@ -137,18 +137,18 @@ class plugin_manager():
         if with_reload:
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
-        
+
         self.create_wikis()
-        
+
         for on_start in self.plugin_functions:
             if on_start.ctype == callback_type.ONS:
                 self.call_plugin_func(on_start, self.plugin_args)
 
         self.watch_subs(self.watched_subs)
-    
+
     def get_subreddit(self, name):
         return self.sub_instances[name]
-    
+
     def create_wikis(self):
         """
         Create wiki pages
@@ -157,35 +157,35 @@ class plugin_manager():
             subreddits = self.bot.get_moderated_subs()
             if len(plugin.subreddits) != 0:
                 subreddits = plugin.subreddits
-            
+
             for sub in subreddits:
                 # Skip user pages
                 if sub.startswith("u_"):
                     continue
 
                 logger.debug("Creating plugin %s for subreddit %s" % (plugin.wiki_page, sub))
-                
+
                 # Append it to the watched wiki pages list
                 wiki_obj = self.WatchedWiki(
-                        self.get_subreddit(sub), 
+                        self.get_subreddit(sub),
                         plugin)
                 if sub not in self.watched_wikis:
                     self.watched_wikis[sub] = {}
-                    
+
                 self.watched_wikis[sub][plugin.wiki_page] = wiki_obj
-                
+
     def get_wiki_content(self, subreddit_name, page):
         return self.watched_wikis[subreddit_name][page].content
-    
+
     def get_parsed_wiki_content(self, subreddit_name, page, parser="CFG_INI"):
         if parser == "CFG_INI":
             crt_content = self.get_wiki_content(subreddit_name, page)
-            
+
             parser = configparser.ConfigParser(allow_no_value=True, strict=False)
             parser.read_string(crt_content)
-            
+
             return parser
-    
+
     def set_wiki_content(self, subreddit_name, page, content, indented=True):
         logger.debug("Editing wiki %s/%s" % (subreddit_name, page))
         if indented:
@@ -379,7 +379,17 @@ class plugin_manager():
         :param sub_list: list of subreddits to watch
         """
 
+        has_rall = False
+        if "all" in sub_list:
+            has_rall = True
+
         for sub in sub_list:
+            if has_rall and sub != "all":
+                if self.bot.get_subreddit(sub).subreddit_type not in ["private", "user"]:
+                    print(self.bot.get_subreddit(sub).subreddit_type)
+                    logger.debug("Skipping %s, because it's not a private subreddit and I'm already watching /r/all" % sub)
+                    continue
+
             logger.debug("Watching " + sub)
             sthread = threading.Thread(
                     name="submissions_%s" % sub,
