@@ -1,6 +1,6 @@
 from modbot import hook
 
-def wiki_changed():
+def wiki_changed(content):
     print("changed")
 
 hook.register_wiki_page(

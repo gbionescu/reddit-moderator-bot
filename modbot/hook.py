@@ -1,10 +1,10 @@
 import enum
-import logging
+from modbot.log import botlog
 import inspect
 
 callbacks = []
 plugins_with_wikis = []
-logger = logging.getLogger('plugin')
+logger = botlog('plugin')
 
 @enum.unique
 class callback_type(enum.Enum):
@@ -46,11 +46,13 @@ class plugin_function():
                 self.first = kwargs['first']
 
 class PluginWiki():
-    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits):
+    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode):
         self.wiki_page = wiki_page
         self.description = description
         self.wiki_change_notifier = wiki_change_notifier
         self.subreddits = subreddits
+        self.refresh_interval = refresh_interval
+        self.mode = mode
 
 def add_plugin_function(obj):
     """
@@ -106,10 +108,9 @@ def comment(*args, **kwargs):
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
 
-
 def on_load(*args, **kwargs):
     """
-    On load hook
+    On plugin load hook
     """
     def _command_hook(func):
         add_plugin_function(plugin_function(func, callback_type.ONL, kwargs, inspect.stack()[1][1]))
@@ -137,8 +138,8 @@ def on_start(*args, **kwargs):
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
 
-def register_wiki_page(wiki_page, description, wiki_change_notifier, subreddits = []):
+def register_wiki_page(wiki_page, description, wiki_change_notifier, subreddits = [], refresh_interval=60, mode="rw"):
     """
     Register a plugin that has its own configuration page
     """
-    plugins_with_wikis.append(PluginWiki(wiki_page, description, wiki_change_notifier, subreddits))
+    plugins_with_wikis.append(PluginWiki(wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode))

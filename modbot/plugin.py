@@ -2,71 +2,23 @@ import os
 import glob
 import importlib
 import threading
-import logging
 import time
 import configparser
+import logging
+from oslo_concurrency.watchdog import watch
 
 from database.db import db_data
-from modbot.reloader import PluginReloader
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
 from modbot.hook import callback_type
+from modbot.reloader import PluginReloader
 from modbot import utils
-from oslo_concurrency.watchdog import watch
-import prawcore
+from modbot.log import botlog
 
-logger = logging.getLogger('plugin')
-logger.setLevel(logging.DEBUG)
-
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-
-fh = logging.FileHandler("bot.log")
-fh.setLevel(logging.DEBUG)
-fh.setFormatter(formatter)
-
-logger.addHandler(ch)
-logger.addHandler(fh)
-EMPTY_WIKI = ""
+logger = botlog("plugin")
 
 class plugin_manager():
-    class WatchedWiki():
-        def __init__(self, subreddit, plugin):
-            self.sub = subreddit
-            self.plugin = plugin
-
-            self.content = ""
-            try:
-                self.content = self.sub.wiki[self.plugin.wiki_page].content_md
-            except prawcore.exceptions.NotFound:
-                logger.debug("Subreddit %s does not contain wiki %s. Creating it." %
-                      (subreddit.display_name, self.plugin.wiki_page))
-                self.sub.wiki[self.plugin.wiki_page].edit(EMPTY_WIKI)
-                self.content = EMPTY_WIKI
-
-            self.old_content = self.content
-
-        def update_content(self):
-            """
-            Update page content and return True if changed, False otherwise
-            """
-            changed = False
-            self.content = self.sub.wiki[self.plugin.wiki_page].content_md
-
-            if self.content != self.old_content:
-                changed = True
-
-            self.old_content = self.content
-
-            return changed
-
-        def set_content(self, content):
-            self.sub.wiki[self.plugin.wiki_page].edit(content)
-
     # Dictionary of items that can be passed to plugins
     def __init__(self,
         bot_inst,
@@ -97,7 +49,7 @@ class plugin_manager():
         self.with_reload = with_reload
         self.plugin_args = {}
 
-        self.watched_wikis = {}
+        self.moderated_subs = {}
 
         # Functions loaded by plugins
         self.plugin_functions = []
@@ -115,7 +67,7 @@ class plugin_manager():
             "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
-        self.add_plugin_arg(self, "bot")
+        self.add_plugin_arg(self, "plugin_manager")
         self.add_plugin_arg(self.config, "config")
         self.add_plugin_arg(self.db, "db")
         self.add_plugin_arg(self.schedule_call, "schedule_call")
@@ -130,68 +82,25 @@ class plugin_manager():
         for path in path_list:
             self.load_plugins(path)
 
-        # Create the periodic thread to trigger periodic events
-        self.create_periodic_thread()
-
         # Only use reloading in debug
         if with_reload:
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
-        self.create_wikis()
-
         for on_start in self.plugin_functions:
             if on_start.ctype == callback_type.ONS:
                 self.call_plugin_func(on_start, self.plugin_args)
 
+        # Create the periodic thread to trigger periodic events
+        self.create_periodic_thread()
+
         self.watch_subs(self.watched_subs)
 
     def get_subreddit(self, name):
+        """
+        Get PRAW instance for a subreddit
+        """
         return self.sub_instances[name]
-
-    def create_wikis(self):
-        """
-        Create wiki pages
-        """
-        for plugin in plugins_with_wikis:
-            subreddits = self.bot.get_moderated_subs()
-            if len(plugin.subreddits) != 0:
-                subreddits = plugin.subreddits
-
-            for sub in subreddits:
-                # Skip user pages
-                if sub.startswith("u_"):
-                    continue
-
-                logger.debug("Creating plugin %s for subreddit %s" % (plugin.wiki_page, sub))
-
-                # Append it to the watched wiki pages list
-                wiki_obj = self.WatchedWiki(
-                        self.get_subreddit(sub),
-                        plugin)
-                if sub not in self.watched_wikis:
-                    self.watched_wikis[sub] = {}
-
-                self.watched_wikis[sub][plugin.wiki_page] = wiki_obj
-
-    def get_wiki_content(self, subreddit_name, page):
-        return self.watched_wikis[subreddit_name][page].content
-
-    def get_parsed_wiki_content(self, subreddit_name, page, parser="CFG_INI"):
-        if parser == "CFG_INI":
-            crt_content = self.get_wiki_content(subreddit_name, page)
-
-            parser = configparser.ConfigParser(allow_no_value=True, strict=False)
-            parser.read_string(crt_content)
-
-            return parser
-
-    def set_wiki_content(self, subreddit_name, page, content, indented=True):
-        logger.debug("Editing wiki %s/%s" % (subreddit_name, page))
-        if indented:
-            lines = content.split("\n")
-            content = "    ".join(i + "\n" for i in lines)
-        self.watched_wikis[subreddit_name][page].set_content(content)
 
     def add_plugin_arg(self, object, alias):
         """
@@ -306,7 +215,7 @@ class plugin_manager():
                 self.callbacks_peri.append(cbk)
 
             elif cbk.ctype == callback_type.ONL:
-                # If callback is of type once, call it now
+                # If callback is of type on load, call it now
                 self.call_plugin_func(cbk, self.plugin_args)
 
 
@@ -314,6 +223,8 @@ class plugin_manager():
         """
         Create a thread that launches periodic events
         """
+        logger.debug("Starting periodic check thread")
+
         periodic_thread = threading.Thread(
                 name="pmgr_thread",
                 target=self.periodic_func)
