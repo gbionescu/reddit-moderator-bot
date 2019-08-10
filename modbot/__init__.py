@@ -22,7 +22,12 @@ class bot():
         self.in_production = self.config.get("mode", "production", fallback=False)
 
         # Get list of moderated subreddits
-        self.moderated_subs = [i.display_name for i in self.reddit.user.moderator_subreddits()]
+        self.moderated_subs = []
+        for i in self.reddit.user.moderator_subreddits():
+            if i.display_name.startswith("u_"):
+                continue
+
+            self.moderated_subs.append(i.display_name)
 
         self.pmgr = plugin_manager(
             self,

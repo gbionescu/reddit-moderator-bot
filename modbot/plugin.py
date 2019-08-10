@@ -15,8 +15,11 @@ from modbot.hook import callback_type
 from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
+from modbot.moderated_sub import DispatchAll, DispatchSubreddit
 
 logger = botlog("plugin")
+
+DISPATCH_ANY = 0
 
 class plugin_manager():
     # Dictionary of items that can be passed to plugins
@@ -49,8 +52,6 @@ class plugin_manager():
         self.with_reload = with_reload
         self.plugin_args = {}
 
-        self.moderated_subs = {}
-
         # Functions loaded by plugins
         self.plugin_functions = []
 
@@ -67,13 +68,17 @@ class plugin_manager():
             "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
-        self.add_plugin_arg(self, "plugin_manager")
-        self.add_plugin_arg(self.config, "config")
-        self.add_plugin_arg(self.db, "db")
-        self.add_plugin_arg(self.schedule_call, "schedule_call")
+        self.plugin_args["plugin_manager"] = self
+        self.plugin_args["config"] = self.config
+        self.plugin_args["db"] = self.db
+        self.plugin_args["schedule_call"] = self.schedule_call
+        self.plugin_args["bot"] = self.bot
 
         # Set start time
         self.start_time = utils.utcnow()
+
+        self.dispatchers = {}
+        self.dispatchers[DISPATCH_ANY] = DispatchAll(self.plugin_args)
 
         # Get notifications from the hook module
         callbacks.append(self.add_plugin_function)
@@ -87,9 +92,9 @@ class plugin_manager():
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
-        for on_start in self.plugin_functions:
-            if on_start.ctype == callback_type.ONS:
-                self.call_plugin_func(on_start, self.plugin_args)
+        # for on_start in self.plugin_functions:
+        #     if on_start.ctype == callback_type.ONS:
+        #         self.call_plugin_func(on_start, self.plugin_args)
 
         # Create the periodic thread to trigger periodic events
         self.create_periodic_thread()
@@ -102,13 +107,6 @@ class plugin_manager():
         """
         return self.sub_instances[name]
 
-    def add_plugin_arg(self, object, alias):
-        """
-        Register an object as a plugin argument
-        """
-        if alias not in self.plugin_args:
-            self.plugin_args[alias] = object
-
     def schedule_call(self, func, when, args=[], kwargs={}):
         self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
 
@@ -119,7 +117,29 @@ class plugin_manager():
         :param func: function to add
         """
         self.plugin_functions.append(func)
-        self.load_plugin_functions([func])
+
+        if func.subreddit == None and func.wiki == None:
+            self.dispatchers[DISPATCH_ANY].add_callback([func])
+        else:
+            sub_list = []
+            # Check if it's a list or a string
+            if type(func.subreddit) == str:
+                sub_list = [func.subreddit]
+            elif type(func.subreddit) == list:
+                sub_list = func.subreddit
+
+            # Check if it's a wiki plugin that is unrestricted
+            if sub_list == []:
+                sub_list = self.bot.get_moderated_subs()
+
+            for sub in sub_list:
+                if sub not in self.dispatchers:
+                    logger.debug("Creating dispatcher for subreddit: " + sub)
+                    self.dispatchers[sub] = \
+                        DispatchSubreddit(self.get_subreddit(sub), self.plugin_args)
+
+                self.dispatchers[sub].add_callback([func])
+
 
     def load_plugin(self, fname):
         """
@@ -194,30 +214,6 @@ class plugin_manager():
         for f in plugins:
             result = self._load_plugin(f)
             self.modules.append(result)
-
-    def load_plugin_functions(self, func_list):
-        """
-        Stores a list of plugin functions depending on how each function is
-        triggered: on submissions, on comments, periodic or once.
-
-        :param func_list: list of plugin functions to load
-        """
-
-        # Check each callback type
-        for cbk in func_list:
-            if cbk.ctype == callback_type.SUB:
-                self.callbacks_subs.append(cbk)
-
-            elif cbk.ctype == callback_type.COM:
-                self.callbacks_coms.append(cbk)
-
-            elif cbk.ctype == callback_type.PER:
-                self.callbacks_peri.append(cbk)
-
-            elif cbk.ctype == callback_type.ONL:
-                # If callback is of type on load, call it now
-                self.call_plugin_func(cbk, self.plugin_args)
-
 
     def create_periodic_thread(self):
         """
@@ -342,28 +338,6 @@ class plugin_manager():
 
         for comment in subreddit.stream.comments():
             self.feed_comms(comment.subreddit, comment)
-
-    def call_plugin_func(self, element, args):
-        """
-        Call a plugin function
-
-        :param element: plugin object containing information about what's to be called
-        :param args: arguments that can be passed on to this function call
-        """
-        cargs = {}
-
-        for farg in element.args:
-            if farg in args.keys():
-                cargs[farg] = args[farg]
-            else:
-                logger.error("Function %s requested %s, but it was not found in %s" % \
-                     (element.func, farg, str(args.keys())))
-                return
-
-        try:
-            element.func(**cargs)
-        except Exception:
-            logging.exception("Exception when running " + str(element.func))
 
     def feed_sub(self, subreddit, submission):
         """

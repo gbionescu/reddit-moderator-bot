@@ -4,7 +4,7 @@ import inspect
 
 callbacks = []
 plugins_with_wikis = []
-logger = botlog('plugin')
+logger = botlog('hook')
 
 @enum.unique
 class callback_type(enum.Enum):
@@ -28,31 +28,37 @@ class plugin_function():
         self.path = path
         self.args = inspect.getargspec(func)[0]
 
+        self.wiki = None
         self.subreddit = None
         self.period = None
         self.first = None
 
-        # Check plugin_function type and parse parameters
-        if ctype == callback_type.SUB:
-            if kwargs and 'subreddit' in kwargs:
+        if kwargs:
+            # Check plugin_function type and parse parameters
+            if 'subreddit' in kwargs:
                 self.subreddit = kwargs['subreddit']
-        elif ctype == callback_type.COM:
-            if kwargs and 'subreddit' in kwargs:
-                self.subreddit = kwargs['subreddit']
-        elif kwargs and ctype == callback_type.PER:
-            if 'period' in kwargs:
-                self.period = kwargs['period']
-            if 'first' in kwargs:
-                self.first = kwargs['first']
+
+            if "wiki" in kwargs:
+                self.wiki = kwargs["wiki"]
+                self.subreddit = self.wiki.subreddits
+
+            if ctype == callback_type.PER:
+                if 'period' in kwargs:
+                    self.period = kwargs['period']
+                if 'first' in kwargs:
+                    self.first = kwargs['first']
 
 class PluginWiki():
-    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode):
+    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode, fpath):
         self.wiki_page = wiki_page
         self.description = description
         self.wiki_change_notifier = wiki_change_notifier
         self.subreddits = subreddits
         self.refresh_interval = refresh_interval
         self.mode = mode
+        self.path = fpath
+
+        logger.debug("Register wiki page " + wiki_page)
 
 def add_plugin_function(obj):
     """
@@ -138,8 +144,26 @@ def on_start(*args, **kwargs):
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
 
-def register_wiki_page(wiki_page, description, wiki_change_notifier, subreddits = [], refresh_interval=60, mode="rw"):
+def register_wiki_page(
+        wiki_page,
+        description,
+        wiki_change_notifier,
+        subreddits=None,
+        refresh_interval=60,
+        mode="rw"):
     """
-    Register a plugin that has its own configuration page
+    Register a plugin that has its own configuration page.
     """
-    plugins_with_wikis.append(PluginWiki(wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode))
+    obj = PluginWiki(
+                wiki_page,
+                description,
+                wiki_change_notifier,
+                subreddits,
+                refresh_interval,
+                mode,
+                inspect.stack()[1][1]
+                )
+
+    plugins_with_wikis.append(obj)
+
+    return obj

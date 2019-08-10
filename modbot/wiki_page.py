@@ -1,6 +1,7 @@
 import prawcore
 from modbot import utils
 from modbot.log import botlog
+from modbot.storage import dsdict
 
 logger = botlog("wiki_page")
 EMPTY_WIKI = ""
@@ -26,6 +27,9 @@ class WatchedWiki():
         self.notifier = self.plugin.wiki_change_notifier
         self.wiki_page = self.plugin.wiki_page
         self.description = self.plugin.description
+
+        # Create location for small storage
+        self.storage = dsdict(self.subreddit_name, self.wiki_page)
 
         # Initialize wiki r/w
         self.mode = ""
