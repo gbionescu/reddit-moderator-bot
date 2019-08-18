@@ -40,11 +40,8 @@ class plugin_manager():
         :param db_params: how to log in to the psql server
         """
         self.modules = []
-        self.callbacks_peri = []
-        self.callbacks_subs = []
-        self.callbacks_coms = []
 
-        self.watch_threads = []
+        self.watch_dict = {} # maps watched subreddits to threads
         self.plugin_threads = []
         self.per_last_exec = {}
         self.bot = bot_inst
@@ -60,8 +57,12 @@ class plugin_manager():
         for sub in watch_subs + self.bot.get_moderated_subs():
             self.sub_instances[sub] = self.bot.get_subreddit(sub)
 
-        # Save the watched subreddits
-        self.watched_subs = watch_subs + self.bot.get_moderated_subs()
+        # Save the given watched subreddits
+        self.given_watched_subs = {}
+        for sub in watch_subs + self.bot.get_moderated_subs():
+            self.given_watched_subs[sub] = True
+
+        self.watched_subs = dict(self.given_watched_subs)
 
         # Create DB connection
         self.db = db_data(
@@ -92,19 +93,20 @@ class plugin_manager():
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
-        # for on_start in self.plugin_functions:
-        #     if on_start.ctype == callback_type.ONS:
-        #         self.call_plugin_func(on_start, self.plugin_args)
+        self.dispatchers[DISPATCH_ANY].run_on_start(False)
 
         # Create the periodic thread to trigger periodic events
         self.create_periodic_thread()
 
-        self.watch_subs(self.watched_subs)
+        self.watch_subs(self.watched_subs.keys())
 
     def get_subreddit(self, name):
         """
         Get PRAW instance for a subreddit
         """
+        if name not in self.sub_instances:
+            self.sub_instances[name] = self.bot.get_subreddit(name)
+
         return self.sub_instances[name]
 
     def schedule_call(self, func, when, args=[], kwargs={}):
@@ -118,6 +120,7 @@ class plugin_manager():
         """
         self.plugin_functions.append(func)
 
+        # Check if we should add it to the generic dispatcher or a specific one
         if func.subreddit == None and func.wiki == None:
             self.dispatchers[DISPATCH_ANY].add_callback([func])
         else:
@@ -128,7 +131,7 @@ class plugin_manager():
             elif type(func.subreddit) == list:
                 sub_list = func.subreddit
 
-            # Check if it's a wiki plugin that is unrestricted
+            # If nothing was specified, then the plugin is active on all moderated subs
             if sub_list == []:
                 sub_list = self.bot.get_moderated_subs()
 
@@ -140,6 +143,8 @@ class plugin_manager():
 
                 self.dispatchers[sub].add_callback([func])
 
+                if sub not in self.watched_subs:
+                    self.watched_subs[sub] = True
 
     def load_plugin(self, fname):
         """
@@ -197,11 +202,6 @@ class plugin_manager():
 
         logger.debug("Unloading %s" % fname)
 
-        rem_plugin(self.callbacks_subs, fname)
-        rem_plugin(self.callbacks_coms, fname)
-        rem_plugin(self.callbacks_peri, fname)
-
-
     def load_plugins(self, path):
         """
         Load plugins from a specified path.
@@ -232,44 +232,14 @@ class plugin_manager():
         """
         Trigger periodic events
         """
-        def trigger_function(el):
-            logger.debug("triggering " + str(el.func))
-
-            pthread = threading.Thread(
-                name="periodic_" + str(el.func),
-                target = self.call_plugin_func,
-                args=(el, self.plugin_args,))
-
-            pthread.setDaemon(True)
-            pthread.start()
-
-            self.plugin_threads.append(pthread)
-            self.per_last_exec[el] = tnow
-
         while True:
             tnow = utils.utcnow()
 
-            # Go through periodic list
-            for el in self.callbacks_peri:
-                # Trigger it at the 'first' interval initially
-                if el.first is not None:
-                    if self.start_time + int(el.first) < tnow:
-                        trigger_function(el)
-
-                        # Delete the attribute so that it's not triggered again
-                        el.first = None
-
-                elif el.period is not None:
-                    # If it was previously executed, check its time delta
-                    if el in self.per_last_exec:
-                        # Check if 'period' has passed since last executed
-                        if self.per_last_exec[el] + int(el.period) < tnow:
-                            trigger_function(el)
-                    else:
-                        trigger_function(el)
+            for dispatch in self.dispatchers.values():
+                dispatch.run_periodic(self.start_time, tnow)
 
             # Wait 1s between checks
-            time.sleep(1)
+            time.sleep(0.2)
 
             # Account for threads
             for thr in self.plugin_threads.copy():
@@ -286,15 +256,15 @@ class plugin_manager():
         :param sub_list: list of subreddits to watch
         """
 
-        has_rall = False
-        if "all" in sub_list:
-            has_rall = True
+        sub_list = list(sub_list)
+        if "all" not in sub_list:
+            sub_list.append("all")
 
         for sub in sub_list:
-            if has_rall and sub != "all":
+            if sub != "all":
                 if self.bot.get_subreddit(sub).subreddit_type not in ["private", "user"]:
                     print(self.bot.get_subreddit(sub).subreddit_type)
-                    logger.debug("Skipping %s, because it's not a private subreddit and I'm already watching /r/all" % sub)
+                    logger.debug("Skipping %s, because it's not a private subreddit and I'm watching /r/all" % sub)
                     continue
 
             logger.debug("Watching " + sub)
@@ -312,8 +282,7 @@ class plugin_manager():
             cthread.setDaemon(True)
             cthread.start()
 
-            self.watch_threads.append(sthread)
-            self.watch_threads.append(cthread)
+            self.watch_dict[sub] = (sthread, cthread)
 
     def thread_sub(self, sub):
         """
@@ -348,14 +317,12 @@ class plugin_manager():
         :param submission: submission instance
         """
 
-        # TODO use a dict
-        for el in self.callbacks_subs:
-            if el.subreddit == None or el.subreddit == subreddit:
-                args = self.plugin_args.copy()
-                args["subreddit"] = subreddit
-                args["submission"] = submission
+        if self.given_watched_subs.get(subreddit.display_name, None):
+            self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
-                self.call_plugin_func(el, args)
+        disp = self.dispatchers.get(subreddit.display_name, None)
+        if disp:
+            self.dispatchers[subreddit.display_name].run_submission(submission)
 
     def feed_comms(self, subreddit, comment):
         """
@@ -366,10 +333,9 @@ class plugin_manager():
         :param submission: comment instance
         """
 
-        for el in self.callbacks_coms:
-            if el.subreddit == None or el.subreddit == subreddit:
-                args = self.plugin_args.copy()
-                args["subreddit"] = subreddit
-                args["comment"] = comment
+        if self.given_watched_subs.get(subreddit.display_name, None):
+            self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
-                self.call_plugin_func(el, args)
+        disp = self.dispatchers.get(subreddit.display_name, None)
+        if disp:
+            disp.run_comment(comment)

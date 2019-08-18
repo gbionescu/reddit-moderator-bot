@@ -33,6 +33,9 @@ class plugin_function():
         self.period = None
         self.first = None
 
+        # Create attribute to track last time the hook was executed
+        self.last_exec = 0
+
         if kwargs:
             # Check plugin_function type and parse parameters
             if 'subreddit' in kwargs:
@@ -47,6 +50,9 @@ class plugin_function():
                     self.period = kwargs['period']
                 if 'first' in kwargs:
                     self.first = kwargs['first']
+
+    def set_last_exec(self, mark):
+        self.last_exec = mark
 
 class PluginWiki():
     def __init__(self, wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode, fpath):

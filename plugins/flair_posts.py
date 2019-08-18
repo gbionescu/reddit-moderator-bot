@@ -11,4 +11,8 @@ wiki = hook.register_wiki_page(
 
 @hook.submission(wiki=wiki)
 def submission(submission):
-    print(submission.subreddit.display_name)
+    print("flair_posts:" + submission.subreddit.display_name)
+
+@hook.periodic(period=5, wiki=wiki)
+def per(subreddit):
+    print(subreddit.display_name)

@@ -1,6 +1,6 @@
 import configparser
+import sys
 from modbot import hook, utils
-from modbot.moderated_sub import ModeratedSubreddit
 from modbot.log import botlog
 from modbot.hook import plugins_with_wikis
 
@@ -28,8 +28,8 @@ def refresh_wikis(plugin_manager):
     """
     Refresh every wiki page and trigger update functions if needed
     """
-    for sub in plugin_manager.moderated_subs.values():
-        for wiki in sub.get_wiki_values():
+    for sub in plugin_manager.bot.get_moderated_subs():
+        for wiki in plugin_manager.dispatchers[sub].get_wiki_values():
             now = utils.utcnow()
             # Check if it's time to refresh
             if wiki.last_update + wiki.refresh_interval < now:
@@ -38,36 +38,44 @@ def refresh_wikis(plugin_manager):
                 if wiki.update_content():
                     wiki.notifier(wiki.content)
 
-def init_control_panel(plugin_manager):
-    for sub in plugin_manager.moderated_subs.values():
-        logger.debug("Configuring control panel for %s" % sub)
+def init_control_panel(sub_name, plugin_list, plugin_manager):
+    sub = plugin_manager.dispatchers[sub_name]
+    logger.debug("Configuring control panel for %s" % sub)
 
-        if len(sub.get_wiki_list()) == 0:
-            logger.debug("Skipping because there are no plugins available for this subreddit.")
-            continue
+    # Get current config page
+    crt_content = parse_wiki_content(sub.get_control_panel())
 
-        # Get current config page
-        crt_content = parse_wiki_content(sub.get_control_panel())
+    # Add header
+    content = "###\n"
+    content += "# A plugin can be enabled by adding it in the section below\n"
+    content += "[Enabled Plugins]\n"
 
-        # Add header
-        content = "###\n"
-        content += "# A plugin can be enabled by adding it in the section below\n"
-        content += "[Enabled Plugins]\n"
+    enabled_plugins = []
+    # Add the existing enabled plugins
+    if crt_content and "Enabled Plugins" in crt_content:
+        for plugin in crt_content["Enabled Plugins"]:
+            content += "%s\n" % plugin
 
-        # Add the existing enabled plugins
-        if crt_content and "Enabled Plugins" in crt_content:
-            for plugin in crt_content["Enabled Plugins"]:
-                content += "%s\n" % plugin
+            enabled_plugins.append(plugin)
 
-        # Add footer
-        content += "\n\n###### Available plugins for this subreddit"
-        wiki_list = sub.get_wiki_list()
-        for page in sorted(wiki_list.keys()):
-            content += "\n\n### %s\n" % page
-            content += "# %s\n" % sub.get_writable_wiki(page).description
-            content += "# https://www.reddit.com/r/%s/wiki/%s" % (sub, page)
+    # Add footer
+    content += "\n\n###### Available plugins for this subreddit"
+    for page in plugin_list:
+        content += "\n\n### %s\n" % page.wiki_page
+        content += "# %s\n" % page.description
+        content += "# https://www.reddit.com/r/%s/wiki/%s\n" % (sub, page.wiki_page)
 
-        sub.set_control_panel(prepare_wiki_content(content))
+        if page.wiki_page in enabled_plugins:
+            content += "# Current status: Enabled"
+            # Only add it one time
+            if page.wiki_page not in sub.get_wiki_list():
+                sub.add_wiki(page)
+            sub.enable_wiki(page.wiki_page)
+        else:
+            content += "# Current status: Disabled"
+            sub.disable_wiki(page.wiki_page)
+
+    sub.set_control_panel(prepare_wiki_content(content))
 
 @hook.on_start
 def create_wikis(plugin_manager):
@@ -75,22 +83,30 @@ def create_wikis(plugin_manager):
     Create wiki pages
     """
 
-    for plugin in plugins_with_wikis:
-        subreddits = plugin_manager.bot.get_moderated_subs()
+    # Go through each moderated subreddit
+    # TODO: handle situation where bot is invited to moderate after it's started
+    for sub in plugin_manager.bot.get_moderated_subs():
+        # Skip user pages
+        if sub.startswith("u_"):
+            continue
 
-        # If the wiki page is specific to a list of subreddits, then overwrite the variable
-        if len(plugin.subreddits) != 0:
-            subreddits = plugin.subreddits
-
-        for sub in subreddits:
-            # Skip user pages
-            if sub.startswith("u_"):
+        plugins_for_crt_sub = []
+        for plugin in plugins_with_wikis:
+            # If the wiki page is specific to a list of subreddits
+            # check if the current subreddit is one of them
+            if plugin.subreddits and len(plugin.subreddits) != 0 and sub not in plugin.subreddits:
                 continue
 
-            if sub not in plugin_manager.moderated_subs:
-                plugin_manager.moderated_subs[sub] = ModeratedSubreddit(plugin_manager.get_subreddit(sub))
+            if sub not in plugin_manager.dispatchers:
+                logger.error("%s not in dispatcher list" % sub)
+                sys.exit(0)
 
-            logger.debug("Creating plugin %s for subreddit %s" % (plugin.wiki_page, sub))
-            plugin_manager.moderated_subs[sub].add_wiki(plugin)
+            plugins_for_crt_sub.append(plugin)
 
-    init_control_panel(plugin_manager)
+        plugins_for_crt_sub = sorted(plugins_for_crt_sub, key=lambda m: m.wiki_page)
+
+        init_control_panel(sub, plugins_for_crt_sub, plugin_manager)
+
+@hook.periodic(period=30)
+def refresh_control_panels(plugin_manager):
+    create_wikis(plugin_manager)
