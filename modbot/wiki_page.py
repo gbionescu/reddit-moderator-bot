@@ -1,4 +1,5 @@
 import prawcore
+import configparser
 from modbot import utils
 from modbot.log import botlog
 from modbot.storage import dsdict
@@ -57,3 +58,20 @@ class WatchedWiki():
     def set_content(self, content):
         if "w" in self.mode:
             self.sub.wiki[self.plugin.wiki_page].edit(content)
+
+def parse_wiki_content(crt_content, parser="CFG_INI"):
+    if parser == "CFG_INI":
+        parser = configparser.ConfigParser(allow_no_value=True, strict=False)
+        parser.read_string(crt_content)
+
+        return parser
+
+def prepare_wiki_content(content, indented=True):
+    """
+    Set wiki page content
+    """
+    if indented:
+        lines = content.split("\n")
+        content = "    ".join(i + "\n" for i in lines)
+
+    return content

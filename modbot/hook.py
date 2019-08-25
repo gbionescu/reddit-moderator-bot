@@ -7,6 +7,10 @@ plugins_with_wikis = []
 logger = botlog('hook')
 
 @enum.unique
+class subreddit_type(enum.Enum):
+    MASTER_SUBREDDIT = 0 # References the master subreddit
+
+@enum.unique
 class callback_type(enum.Enum):
     SUB = 0
     COM = 1
@@ -55,16 +59,58 @@ class plugin_function():
         self.last_exec = mark
 
 class PluginWiki():
-    def __init__(self, wiki_page, description, wiki_change_notifier, subreddits, refresh_interval, mode, fpath):
+    def __init__(self,
+        wiki_page,
+        description,
+        documentation,
+        wiki_change_notifier,
+        subreddits,
+        refresh_interval,
+        mode,
+        fpath,
+        default_enabled):
+
         self.wiki_page = wiki_page
         self.description = description
+        self.documentation = documentation
         self.wiki_change_notifier = wiki_change_notifier
         self.subreddits = subreddits
         self.refresh_interval = refresh_interval
         self.mode = mode
         self.path = fpath
+        self.default_enabled = default_enabled
 
         logger.debug("Register wiki page " + wiki_page)
+
+def register_wiki_page(
+        wiki_page,
+        description,
+        documentation=None,
+        wiki_change_notifier=None,
+        subreddits=None,
+        refresh_interval=60,
+        mode="rw",
+        default_enabled=False,
+        ):
+    """
+    Register a plugin that has its own configuration page.
+    """
+    obj = PluginWiki(
+                wiki_page=wiki_page,
+                description=description,
+                documentation=documentation,
+                wiki_change_notifier=wiki_change_notifier,
+                subreddits=subreddits,
+                refresh_interval=refresh_interval,
+                mode=mode,
+                fpath=inspect.stack()[1][1],
+                default_enabled=default_enabled
+                )
+
+    plugins_with_wikis.append(obj)
+
+    return obj
+
 
 def add_plugin_function(obj):
     """
@@ -149,27 +195,3 @@ def on_start(*args, **kwargs):
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
-
-def register_wiki_page(
-        wiki_page,
-        description,
-        wiki_change_notifier,
-        subreddits=None,
-        refresh_interval=60,
-        mode="rw"):
-    """
-    Register a plugin that has its own configuration page.
-    """
-    obj = PluginWiki(
-                wiki_page,
-                description,
-                wiki_change_notifier,
-                subreddits,
-                refresh_interval,
-                mode,
-                inspect.stack()[1][1]
-                )
-
-    plugins_with_wikis.append(obj)
-
-    return obj

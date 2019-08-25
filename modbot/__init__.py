@@ -34,7 +34,7 @@ class bot():
             path_list=self.config.get("config", "plugin_folders").split(","),
             with_reload=self.config.get(section="debug", option="reload", fallback=False),
             bot_config=self.config,
-            watch_subs=[i.strip() for i in self.config.get(section="config", option="watch_subs").split(",")],
+            master_subreddit=self.config.get(section="config", option="master_subreddit"),
             db_params=dict(self.config["postgresql"])
         )
 

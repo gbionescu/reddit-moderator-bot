@@ -6,8 +6,8 @@ import time
 import configparser
 import logging
 from oslo_concurrency.watchdog import watch
-
 from database.db import db_data
+from modbot import hook
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
@@ -25,18 +25,18 @@ class plugin_manager():
     # Dictionary of items that can be passed to plugins
     def __init__(self,
         bot_inst,
+        master_subreddit,
         path_list=None,
         with_reload=False,
         bot_config={},
-        watch_subs=[],
         db_params={}):
         """
         Class that manages plugins from a given list of paths.
         :param bot_inst: bot instance
+        :param master_subreddit: subreddit where core bot configuration is stored
         :param path_list: list of folders relative to the location from where to load plugins
         :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
-        :param watch_subs: subreddits to watch
         :param db_params: how to log in to the psql server
         """
         self.modules = []
@@ -54,12 +54,14 @@ class plugin_manager():
 
         # Dict of subreddit PRAW instances
         self.sub_instances = {}
-        for sub in watch_subs + self.bot.get_moderated_subs():
+        for sub in self.bot.get_moderated_subs():
             self.sub_instances[sub] = self.bot.get_subreddit(sub)
+
+        self.master_sub = self.bot.get_subreddit(master_subreddit)
 
         # Save the given watched subreddits
         self.given_watched_subs = {}
-        for sub in watch_subs + self.bot.get_moderated_subs():
+        for sub in self.bot.get_moderated_subs():
             self.given_watched_subs[sub] = True
 
         self.watched_subs = dict(self.given_watched_subs)
@@ -136,6 +138,9 @@ class plugin_manager():
                 sub_list = self.bot.get_moderated_subs()
 
             for sub in sub_list:
+                if sub == hook.subreddit_type.MASTER_SUBREDDIT:
+                    func.wiki.subreddits = [self.master_sub]
+                    sub = self.master_sub.display_name
                 if sub not in self.dispatchers:
                     logger.debug("Creating dispatcher for subreddit: " + sub)
                     self.dispatchers[sub] = \

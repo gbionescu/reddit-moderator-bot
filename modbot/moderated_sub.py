@@ -33,7 +33,7 @@ class DispatchAll():
 
             elif func.ctype == callback_type.ONL:
                 # If callback is of type on load, call it now
-                self.to_call(func)
+                self.to_call(func, False)
             elif func.ctype == callback_type.ONS:
                 self.callbacks_onstart.append(func)
             else:
@@ -156,8 +156,6 @@ class DispatchAll():
         # Create the container each time
         self.enabled_wiki_hooks = self.HookContainer(self.call_plugin_func)
         for wiki in self.enabled_wikis:
-            # Call on start hooks for the current wiki
-            self.wiki_pages_callbacks[wiki].run_on_start()
             # Add it to the enabled wiki hook list
             self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
 
@@ -167,6 +165,9 @@ class DispatchAll():
             self.enabled_wikis.append(wiki)
 
             self.rebuild_wiki_hooks()
+
+            # Call on start hooks for the current wiki
+            self.wiki_pages_callbacks[wiki].run_on_start()
 
     def disable_wiki(self, wiki):
         if wiki in self.enabled_wikis:
@@ -204,7 +205,7 @@ class DispatchSubreddit(DispatchAll):
         super().__init__(plugin_args)
 
         self.add_plugin_arg(subreddit, "subreddit")
-
+        self.add_plugin_arg(self.wiki_pages, "wiki_pages")
 
     def add_wiki(self, plugin):
         """

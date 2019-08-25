@@ -1,27 +1,11 @@
-import configparser
+
 import sys
 from modbot import hook, utils
+from modbot.wiki_page import parse_wiki_content, prepare_wiki_content
 from modbot.log import botlog
 from modbot.hook import plugins_with_wikis
 
 logger = botlog("wiki")
-
-def parse_wiki_content(crt_content, parser="CFG_INI"):
-    if parser == "CFG_INI":
-        parser = configparser.ConfigParser(allow_no_value=True, strict=False)
-        parser.read_string(crt_content)
-
-        return parser
-
-def prepare_wiki_content(content, indented=True):
-    """
-    Set wiki page content
-    """
-    if indented:
-        lines = content.split("\n")
-        content = "    ".join(i + "\n" for i in lines)
-
-    return content
 
 @hook.periodic(period=10)
 def refresh_wikis(plugin_manager):
@@ -57,6 +41,12 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
             content += "%s\n" % plugin
 
             enabled_plugins.append(plugin)
+
+    # Enable default enabled wikis
+    for page in plugin_list:
+        if page.default_enabled and page.wiki_page not in enabled_plugins:
+            enabled_plugins.append(page.wiki_page)
+            content += "%s\n" % page.wiki_page
 
     # Add footer
     content += "\n\n###### Available plugins for this subreddit"
