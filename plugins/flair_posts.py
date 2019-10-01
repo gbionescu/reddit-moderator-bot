@@ -32,8 +32,13 @@ These conditionals can be:
 - priority - prioritizes condition checking. By default a rule has priority 0. Lower priority numbers, will make a rule be evaluated in the beginning.
 
 See the example below for a complete configuration:
+
+Example 1:
+
 [Setup]
+# Send a message every 5, 10, 20 and 25 minutes
 message_intervals = 5, 10, 20, 25
+# Try to autoflair after 30 minutes
 autoflair = 30
 
 message = Hi! Please flair ${SUBMISSION_LINK}. This is message number ${MESSAGE_NO} / ${MAX_MESSAGES}
@@ -49,6 +54,17 @@ flair_css_class = "news"
 [autoflair_news2]
 body_contains = ["Macron", "Brexit"]
 flair_css_class = "news"
+
+***
+
+Example 2:
+
+[Setup]
+# Send a message after 10 minutes
+message_intervals = 10
+# Try to autoflair after 1 minute
+autoflair = 1
+
 """
 logger = botlog("flair_posts")
 MIN_GRANULARITY = timedata.SEC_IN_MIN
