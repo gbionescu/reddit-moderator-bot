@@ -171,6 +171,9 @@ class Flair():
     def add_autoflair(self, section, name):
         self.aflairs.append(AutoFlair(section, name))
 
+        # Sort by priority
+        self.aflairs = sorted(self.aflairs, key=lambda prio: int(prio.priority))
+
     def get_lowest_time(self):
         """
         Get the lowest time limit for taking an action
