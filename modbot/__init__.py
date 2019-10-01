@@ -43,3 +43,13 @@ class bot():
 
     def get_subreddit(self, sub):
         return self.reddit.subreddit(sub)
+
+    def send_pm(self, user, subject, text, skip_signature=False):
+
+        if not skip_signature:
+            text += "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=programatorulupeste&subject=Bot&message=) ^^to ^^its ^^author."
+
+        user.message(subject, text)
+
+    def set_flair_id(self, post, flair_id):
+        post.flair.select(flair_id)

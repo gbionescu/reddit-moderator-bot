@@ -3,6 +3,7 @@ import json
 import collections
 import logging
 import platform
+import shutil
 from shutil import copyfile
 
 logger = logging.getLogger("storage")
@@ -15,6 +16,9 @@ DS_LOC = "storage_data/"
 
 class dstype():
     def __init__(self, parent, name):
+        if not name.endswith(".json"):
+            name = name + ".json"
+
         logger.debug("Initializing %s, %s" % (parent, name))
 
         os.makedirs(os.path.join(DS_LOC, parent, "backup"), exist_ok=True)
@@ -38,8 +42,9 @@ class dstype():
 
             logger.debug("Load/sync OK")
         except:
-            print("File at %s is not valid" % (DS_LOC + name))
-            logger.debug("Sync error - file invalid")
+            print("Sync error when syncing %s" % name)
+            logger.debug("Sync error when syncing %s" % name)
+            import traceback; traceback.print_exc()
 
         logger.debug("Open file")
         file = open(DS_LOC + name, "w")
@@ -48,7 +53,6 @@ class dstype():
         logger.debug("Sync finished")
 
     def sync(self):
-        return
         self.do_sync(self.data, self.location, self.backup_name)
 
     def get_obj(self, location):

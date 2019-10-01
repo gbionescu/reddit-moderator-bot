@@ -1,4 +1,9 @@
 
+#
+# This file creates wiki pages for each subreddit where a plugin is available.
+# It also checks wiki pages for changes and notifies plugins
+#
+
 import sys
 from modbot import hook, utils
 from modbot.wiki_page import parse_wiki_content, prepare_wiki_content
@@ -19,15 +24,16 @@ def refresh_wikis(plugin_manager):
             if wiki.last_update + wiki.refresh_interval < now:
                 wiki.last_update = now
                 # If the content has changed, trigger the update function
-                if wiki.update_content():
-                    wiki.notifier(wiki.content)
+                if wiki.update_content() and wiki.notifier:
+                    wiki.notifier(plugin_manager.dispatchers[sub].subreddit, wiki.content)
 
 def init_control_panel(sub_name, plugin_list, plugin_manager):
-    sub = plugin_manager.dispatchers[sub_name]
-    logger.debug("Configuring control panel for %s" % sub)
+    # Get subreddit dispatcher
+    sub_dispatcher = plugin_manager.dispatchers[sub_name]
+    logger.debug("Configuring control panel for %s" % sub_dispatcher)
 
     # Get current config page
-    crt_content = parse_wiki_content(sub.get_control_panel())
+    crt_content = parse_wiki_content(sub_dispatcher.get_control_panel())
 
     # Add header
     content = "###\n"
@@ -53,19 +59,25 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     for page in plugin_list:
         content += "\n\n### %s\n" % page.wiki_page
         content += "# %s\n" % page.description
-        content += "# https://www.reddit.com/r/%s/wiki/%s\n" % (sub, page.wiki_page)
+        content += "# https://www.reddit.com/r/%s/wiki/%s\n" % (sub_dispatcher, page.wiki_page)
 
         if page.wiki_page in enabled_plugins:
             content += "# Current status: Enabled"
             # Only add it one time
-            if page.wiki_page not in sub.get_wiki_list():
-                sub.add_wiki(page)
-            sub.enable_wiki(page.wiki_page)
+            new_wiki = None
+            if page.wiki_page not in sub_dispatcher.get_wiki_list():
+                new_wiki = sub_dispatcher.add_wiki(page)
+            sub_dispatcher.enable_wiki(page.wiki_page)
+
+            # Call the wiki notifier with the current content
+            if new_wiki and new_wiki.notifier:
+                new_wiki.update_content()
+                new_wiki.notifier(sub_dispatcher.subreddit, new_wiki.content)
         else:
             content += "# Current status: Disabled"
-            sub.disable_wiki(page.wiki_page)
+            sub_dispatcher.disable_wiki(page.wiki_page)
 
-    sub.set_control_panel(prepare_wiki_content(content))
+    sub_dispatcher.set_control_panel(prepare_wiki_content(content))
 
 @hook.on_start
 def create_wikis(plugin_manager):

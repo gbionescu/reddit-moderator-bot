@@ -5,7 +5,10 @@ from modbot import utils
 from modbot.log import botlog
 from modbot.wiki_page import WatchedWiki
 from modbot.hook import callback_type
+from modbot.storage import dsdict
 logger = botlog("mod_sub")
+
+storage_cache = {}
 
 class DispatchAll():
     class HookContainer():
@@ -16,6 +19,7 @@ class DispatchAll():
             self.callbacks_onstart = []
             self.callbacks = []
             self.to_call = to_call
+            self.extra_args = {}
 
         def add_hook(self, func, last_exec=utils.utcnow()):
             # Create an unique copy for this container
@@ -33,7 +37,7 @@ class DispatchAll():
 
             elif func.ctype == callback_type.ONL:
                 # If callback is of type on load, call it now
-                self.to_call(func, False)
+                self.to_call(func, False, {**self.extra_args})
             elif func.ctype == callback_type.ONS:
                 self.callbacks_onstart.append(func)
             else:
@@ -41,7 +45,7 @@ class DispatchAll():
 
         def run_on_start(self, with_thread=False):
             for cbk in self.callbacks_onstart:
-                self.to_call(cbk, with_thread)
+                self.to_call(cbk, with_thread, {**self.extra_args})
 
         def merge_container(self, cont):
             # Merge periodic callbacks
@@ -65,7 +69,7 @@ class DispatchAll():
                 if el.first:
                     if start_time + int(el.first) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True)
+                        self.to_call(el, True, {**self.extra_args})
 
                         # Delete the attribute so that it's not triggered again
                         el.first = None
@@ -74,15 +78,15 @@ class DispatchAll():
                     # Check if 'period' has passed since last executed
                     if el.last_exec + int(el.period) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True)
+                        self.to_call(el, True, {**self.extra_args})
 
-        def run_submission(self, submission):
+        def run_submission(self, submission, extra_args):
             for cbk in self.callbacks_subs:
-                self.to_call(cbk, False, {"submission": submission})
+                self.to_call(cbk, False, {**self.extra_args, **extra_args})
 
-        def run_comment(self, comment):
+        def run_comment(self, comment, extra_args):
             for cbk in self.callbacks_coms:
-                self.to_call(cbk, False, {"comment": comment})
+                self.to_call(cbk, False, {**self.extra_args, **extra_args})
 
     def __repr__(self):
         return "generic"
@@ -107,6 +111,14 @@ class DispatchAll():
         """
         def trigger_func(element, args):
             cargs = {}
+
+            # If storage was requested, retrieve the storage for subreddit/wiki_page
+            if "storage" in element.args:
+                stor_name = "%s/%s" % (args["subreddit"].display_name, element.wiki.wiki_page)
+                if stor_name not in storage_cache:
+                    storage_cache[stor_name] = dsdict(args["subreddit"].display_name, element.wiki.wiki_page)
+
+                args["storage"] = storage_cache[stor_name]
 
             for farg in element.args:
                 if farg in args.keys():
@@ -179,6 +191,7 @@ class DispatchAll():
     def run_on_start(self, with_thread=False):
         self.logger.debug("Running on start for generic hooks")
         self.generic_hooks.run_on_start(with_thread)
+
         self.logger.debug("Running on start for wiki hooks")
         self.enabled_wiki_hooks.run_on_start(with_thread)
 
@@ -187,12 +200,20 @@ class DispatchAll():
         self.enabled_wiki_hooks.run_periodic(start_time, timestamp)
 
     def run_submission(self, submission):
-        self.generic_hooks.run_submission(submission)
-        self.enabled_wiki_hooks.run_submission(submission)
+        extra = {
+            "submission": submission,
+            "subreddit": submission.subreddit}
+
+        self.generic_hooks.run_submission(submission, extra)
+        self.enabled_wiki_hooks.run_submission(submission, extra)
 
     def run_comment(self, comment):
-        self.generic_hooks.run_comment(comment)
-        self.enabled_wiki_hooks.run_comment(comment)
+        extra = {
+            "comment": comment,
+            "subreddit": comment.subreddit}
+
+        self.generic_hooks.run_comment(comment, extra)
+        self.enabled_wiki_hooks.run_comment(comment, extra)
 
 class DispatchSubreddit(DispatchAll):
     def __repr__(self):
@@ -223,6 +244,8 @@ class DispatchSubreddit(DispatchAll):
                             Initializing it in read only mode." % (page.wiki_page, self.subreddit.display_name))
 
                         self.wiki_pages[page.wiki_page].append(page)
+
+        return page
 
     def get_wiki_list(self):
         """

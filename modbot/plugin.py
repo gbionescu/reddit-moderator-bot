@@ -76,6 +76,9 @@ class plugin_manager():
         self.plugin_args["db"] = self.db
         self.plugin_args["schedule_call"] = self.schedule_call
         self.plugin_args["bot"] = self.bot
+        self.plugin_args["send_pm"] = self.bot.send_pm
+        self.plugin_args["reddit_inst"] = self.bot.reddit
+        self.plugin_args["set_flair_id"] = self.bot.set_flair_id
 
         # Set start time
         self.start_time = utils.utcnow()
