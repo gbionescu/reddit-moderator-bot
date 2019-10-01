@@ -300,9 +300,9 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
                  to_remove.append(post)
                  continue
             # Was it removed?
-            #elif temp.is_crosspostable == False:
-            #     to_remove.append(post)
-            #     continue
+            elif temp.is_crosspostable == False:
+                to_remove.append(post)
+                continue
 
             # Has the user updated the flair?
             if temp.link_flair_text is None or temp.link_flair_text is "":
