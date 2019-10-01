@@ -5,3 +5,4 @@ __pycache__
 *.ini
 *.pyc
 data/
+storage_data/
