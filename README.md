@@ -12,11 +12,19 @@ For reference, there are a couple of plugin examples in plugins/.
 In order to start up the bot, a config file named 'reddit-bot.ini' needs to be created.
 Config file example:
 ```
-[debug]
-# Comment to disable runtime plugin reloading
-reload = true
+[reddit]
+user_agent = user agent to be used by the bot
+praw_config_section = PRAW config section to use for authenticating the bot
 
 [config]
-# Configure what subreddits to watch for events (e.g. /r/all)
-watch_subs = all
+master_subreddit = subreddit where debug logs are posted
+# This should not be changed since all the plugins are in plugins/
+plugin_folders = plugins
+
+[postgresql]
+# Set DB connection settings to psql
+host = localhost
+database = dbname
+user = dbuser
+password = dbpassword
 ```
