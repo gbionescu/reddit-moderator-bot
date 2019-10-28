@@ -133,7 +133,7 @@ class DispatchAll():
             except Exception:
                 logging.exception("Exception when running " + str(element.func))
         if with_thread:
-            self.logger.debug("triggering " + str(el.func))
+            #self.logger.debug("triggering " + str(el.func))
             pthread = threading.Thread(
                 name="periodic_" + str(el.func),
                 target = trigger_func,
@@ -268,13 +268,19 @@ class DispatchSubreddit(DispatchAll):
         """
         Get the control panel content
         """
-        self.crt_control_panel = self.subreddit.wiki["control_panel"].content_md
+        try:
+            self.crt_control_panel = self.subreddit.wiki["control_panel"].content_md
+        except:
+            return ""
         return self.crt_control_panel
 
     def set_control_panel(self, content):
         """
         Set control panel content
         """
+
+        # Strip starting / ending whitespace
+        content = content.strip()
         if self.crt_control_panel != content:
             logger.debug("Editing control panel for %s" % self)
             return self.subreddit.wiki["control_panel"].edit(content)

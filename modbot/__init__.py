@@ -21,14 +21,6 @@ class bot():
         # Mark if running in test mode
         self.in_production = self.config.get("mode", "production", fallback=False)
 
-        # Get list of moderated subreddits
-        self.moderated_subs = []
-        for i in self.reddit.user.moderator_subreddits():
-            if i.display_name.startswith("u_"):
-                continue
-
-            self.moderated_subs.append(i.display_name)
-
         self.pmgr = plugin_manager(
             self,
             path_list=self.config.get("config", "plugin_folders").split(","),
@@ -39,7 +31,11 @@ class bot():
         )
 
     def get_moderated_subs(self):
-        return self.moderated_subs
+        for i in self.reddit.user.moderator_subreddits():
+            if i.display_name.startswith("u_"):
+                continue
+
+            yield i.display_name
 
     def get_subreddit(self, sub):
         return self.reddit.subreddit(sub)
