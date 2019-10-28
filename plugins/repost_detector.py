@@ -53,7 +53,9 @@ def clean_title(title):
     return no_shortw
 
 def calc_overlap(list1, list2):
-    return len(set(list1).difference(set(list2))) / len(list1), len(set(list1).difference(set(list2))) / len(list2)
+    return \
+        1.0 - len(set(list1).difference(set(list2))) / len(list1), \
+            1.0 - len(set(list2).difference(set(list1))) / len(list2)
 
 @hook.submission(wiki=wiki)
 def new_post(submission, storage, reddit_inst):
