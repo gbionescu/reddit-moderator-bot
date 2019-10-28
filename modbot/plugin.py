@@ -2,75 +2,120 @@ import os
 import glob
 import importlib
 import threading
-import logging
 import time
-
-from modbot.reloader import PluginReloader
+import configparser
+import logging
+from oslo_concurrency.watchdog import watch
+from database.db import db_data
+from modbot import hook
 
 # meh method of getting the callback list after loading, but works for now
-from modbot.hook import callbacks
+from modbot.hook import callbacks, plugins_with_wikis
 from modbot.hook import callback_type
+from modbot.reloader import PluginReloader
 from modbot import utils
+from modbot.log import botlog
+from modbot.moderated_sub import DispatchAll, DispatchSubreddit
 
-logger = logging.getLogger('plugin')
-logger.setLevel(logging.INFO)
+logger = botlog("plugin")
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-
-fh = logging.FileHandler("bot.log")
-fh.setLevel(logging.DEBUG)
-fh.setFormatter(formatter)
-
-logger.addHandler(ch)
-logger.addHandler(fh)
+DISPATCH_ANY = 0
 
 class plugin_manager():
-    def __init__(self, path_list=None, reddit=None, with_reload=False, bot_config={}):
+    # Dictionary of items that can be passed to plugins
+    def __init__(self,
+        bot_inst,
+        master_subreddit,
+        path_list=None,
+        with_reload=False,
+        bot_config={},
+        db_params={}):
         """
         Class that manages plugins from a given list of paths.
-        :param path_list: list of folders relative to the location from where
-        :param reddit: reddit instance
+        :param bot_inst: bot instance
+        :param master_subreddit: subreddit where core bot configuration is stored
+        :param path_list: list of folders relative to the location from where to load plugins
         :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
+        :param db_params: how to log in to the psql server
         """
         self.modules = []
-        self.callbacks_peri = []
-        self.callbacks_subs = []
-        self.callbacks_coms = []
 
-        self.watch_threads = []
+        self.watch_dict = {} # maps watched subreddits to threads
         self.plugin_threads = []
         self.per_last_exec = {}
-        self.reddit = reddit
+        self.bot = bot_inst
         self.config = bot_config
         self.with_reload = with_reload
+        self.plugin_args = {}
+
+        # Functions loaded by plugins
+        self.plugin_functions = []
+
+        # Dict of subreddit PRAW instances
+        self.sub_instances = {}
+        for sub in self.bot.get_moderated_subs():
+            self.sub_instances[sub] = self.bot.get_subreddit(sub)
+
+        self.master_sub = self.bot.get_subreddit(master_subreddit)
+
+        # Save the given watched subreddits
+        self.given_watched_subs = {}
+        for sub in self.bot.get_moderated_subs():
+            self.given_watched_subs[sub] = True
+
+        self.watched_subs = dict(self.given_watched_subs)
+
+        # Create DB connection
+        self.db = db_data(
+            "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
-        self.args = {}
-        self.args["bot"] = self
-        self.args["reddit"] = self.reddit
-        self.args["config"] = self.config
+        self.plugin_args["plugin_manager"] = self
+        self.plugin_args["config"] = self.config
+        self.plugin_args["db"] = self.db
+        self.plugin_args["schedule_call"] = self.schedule_call
+        self.plugin_args["bot"] = self.bot
+        self.plugin_args["send_pm"] = self.bot.send_pm
+        self.plugin_args["reddit_inst"] = self.bot.reddit
+        self.plugin_args["set_flair_id"] = self.bot.set_flair_id
 
         # Set start time
         self.start_time = utils.utcnow()
 
+        self.dispatchers = {}
+        self.dispatchers[DISPATCH_ANY] = DispatchAll(self.plugin_args)
+
         # Get notifications from the hook module
         callbacks.append(self.add_plugin_function)
 
+        # Load plugins
         for path in path_list:
             self.load_plugins(path)
-
-        # Create the periodic thread to trigger periodic events
-        self.create_periodic_thread(self.reddit)
 
         # Only use reloading in debug
         if with_reload:
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
+
+        self.dispatchers[DISPATCH_ANY].run_on_start(False)
+
+        # Create the periodic thread to trigger periodic events
+        self.create_periodic_thread()
+
+        self.watch_subs(self.watched_subs.keys())
+
+    def get_subreddit(self, name):
+        """
+        Get PRAW instance for a subreddit
+        """
+        if name not in self.sub_instances:
+            self.sub_instances[name] = self.bot.get_subreddit(name)
+
+        return self.sub_instances[name]
+
+    def schedule_call(self, func, when, args=[], kwargs={}):
+        self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
 
     def add_plugin_function(self, func):
         """
@@ -78,7 +123,36 @@ class plugin_manager():
 
         :param func: function to add
         """
-        self.load_plugin_functions([func])
+        self.plugin_functions.append(func)
+
+        # Check if we should add it to the generic dispatcher or a specific one
+        if func.subreddit == None and func.wiki == None:
+            self.dispatchers[DISPATCH_ANY].add_callback([func])
+        else:
+            sub_list = []
+            # Check if it's a list or a string
+            if type(func.subreddit) == str:
+                sub_list = [func.subreddit]
+            elif type(func.subreddit) == list:
+                sub_list = func.subreddit
+
+            # If nothing was specified, then the plugin is active on all moderated subs
+            if sub_list == []:
+                sub_list = self.bot.get_moderated_subs()
+
+            for sub in sub_list:
+                if sub == hook.subreddit_type.MASTER_SUBREDDIT:
+                    func.wiki.subreddits = [self.master_sub]
+                    sub = self.master_sub.display_name
+                if sub not in self.dispatchers:
+                    logger.debug("Creating dispatcher for subreddit: " + sub)
+                    self.dispatchers[sub] = \
+                        DispatchSubreddit(self.get_subreddit(sub), self.plugin_args)
+
+                self.dispatchers[sub].add_callback([func])
+
+                if sub not in self.watched_subs:
+                    self.watched_subs[sub] = True
 
     def load_plugin(self, fname):
         """
@@ -136,11 +210,6 @@ class plugin_manager():
 
         logger.debug("Unloading %s" % fname)
 
-        rem_plugin(self.callbacks_subs, fname)
-        rem_plugin(self.callbacks_coms, fname)
-        rem_plugin(self.callbacks_peri, fname)
-
-
     def load_plugins(self, path):
         """
         Load plugins from a specified path.
@@ -148,41 +217,18 @@ class plugin_manager():
         :param path: globs over python files in a path and loads each one
         """
 
+        logger.debug("Loading plugins from %s" % path)
         plugins = glob.iglob(os.path.join(path, '*.py'))
         for f in plugins:
             result = self._load_plugin(f)
             self.modules.append(result)
 
-    def load_plugin_functions(self, func_list):
-        """
-        Stores a list of plugin functions depending on how each function is
-        triggered: on submissions, on comments, periodic or once.
-
-        :param func_list: list of plugin functions to load
-        """
-
-        # Check each callback type
-        for cbk in func_list:
-            if cbk.ctype == callback_type.SUB:
-                self.callbacks_subs.append(cbk)
-
-            elif cbk.ctype == callback_type.COM:
-                self.callbacks_coms.append(cbk)
-
-            elif cbk.ctype == callback_type.PER:
-                self.callbacks_peri.append(cbk)
-
-            elif cbk.ctype == callback_type.ONC:
-                # If callback is of type once, call it now
-                self.call_plugin_func(cbk, self.args)
-
-
-    def create_periodic_thread(self, reddit):
+    def create_periodic_thread(self):
         """
         Create a thread that launches periodic events
-
-        :param reddit: praw reddit instance passed on to functions
         """
+        logger.debug("Starting periodic check thread")
+
         periodic_thread = threading.Thread(
                 name="pmgr_thread",
                 target=self.periodic_func)
@@ -194,44 +240,14 @@ class plugin_manager():
         """
         Trigger periodic events
         """
-        def trigger_function(el):
-            logger.debug("triggering " + str(el.func))
-
-            pthread = threading.Thread(
-                name="periodic_" + str(el.func),
-                target = self.call_plugin_func,
-                args=(el, self.args,))
-
-            pthread.setDaemon(True)
-            pthread.start()
-
-            self.plugin_threads.append(pthread)
-            self.per_last_exec[el] = tnow
-
         while True:
             tnow = utils.utcnow()
 
-            # Go through periodic list
-            for el in self.callbacks_peri:
-                # Trigger it at the 'first' interval initially
-                if el.first is not None:
-                    if self.start_time + int(el.first) < tnow:
-                        trigger_function(el)
-
-                        # Delete the attribute so that it's not triggered again
-                        el.first = None
-
-                elif el.period is not None:
-                    # If it was previously executed, check its time delta
-                    if el in self.per_last_exec:
-                        # Check if 'period' has passed since last executed
-                        if self.per_last_exec[el] + int(el.period) < tnow:
-                            trigger_function(el)
-                    else:
-                        trigger_function(el)
+            for dispatch in self.dispatchers.values():
+                dispatch.run_periodic(self.start_time, tnow)
 
             # Wait 1s between checks
-            time.sleep(1)
+            time.sleep(0.2)
 
             # Account for threads
             for thr in self.plugin_threads.copy():
@@ -248,7 +264,17 @@ class plugin_manager():
         :param sub_list: list of subreddits to watch
         """
 
+        sub_list = list(sub_list)
+        if "all" not in sub_list:
+            sub_list.append("all")
+
         for sub in sub_list:
+            if sub != "all":
+                if self.bot.get_subreddit(sub).subreddit_type not in ["private", "user"]:
+                    print(self.bot.get_subreddit(sub).subreddit_type)
+                    logger.debug("Skipping %s, because it's not a private subreddit and I'm watching /r/all" % sub)
+                    continue
+
             logger.debug("Watching " + sub)
             sthread = threading.Thread(
                     name="submissions_%s" % sub,
@@ -264,8 +290,7 @@ class plugin_manager():
             cthread.setDaemon(True)
             cthread.start()
 
-            self.watch_threads.append(sthread)
-            self.watch_threads.append(cthread)
+            self.watch_dict[sub] = (sthread, cthread)
 
     def thread_sub(self, sub):
         """
@@ -274,7 +299,7 @@ class plugin_manager():
         :param sub: subreddit to watch
         """
 
-        subreddit = self.reddit.subreddit(sub)
+        subreddit = self.bot.get_subreddit(sub)
 
         for submission in subreddit.stream.submissions():
             self.feed_sub(submission.subreddit, submission)
@@ -286,32 +311,10 @@ class plugin_manager():
         :param sub: subreddit to watch
         """
 
-        subreddit = self.reddit.subreddit(sub)
+        subreddit = self.bot.get_subreddit(sub)
 
         for comment in subreddit.stream.comments():
             self.feed_comms(comment.subreddit, comment)
-
-    def call_plugin_func(self, element, args):
-        """
-        Call a plugin function
-
-        :param element: plugin object containing information about what's to be called
-        :param args: arguments that can be passed on to this function call
-        """
-        cargs = {}
-
-        for farg in element.args:
-            if farg in args.keys():
-                cargs[farg] = args[farg]
-            else:
-                logger.error("Function %s requested %s, but it was not found in %s" % \
-                     (element.func, farg, str(args.keys())))
-                return
-
-        try:
-            element.func(**cargs)
-        except Exception:
-            logging.exception("Exception when running " + str(element.func))
 
     def feed_sub(self, subreddit, submission):
         """
@@ -322,15 +325,12 @@ class plugin_manager():
         :param submission: submission instance
         """
 
-        # TODO use a dict
-        for el in self.callbacks_subs:
-            if el.subreddit == None or el.subreddit == subreddit:
-                args = self.args.copy()
-                args["subreddit"] = subreddit
-                args["submission"] = submission
-                args["reddit"] = self.reddit
+        if self.given_watched_subs.get(subreddit.display_name, None):
+            self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
-                self.call_plugin_func(el, args)
+        disp = self.dispatchers.get(subreddit.display_name, None)
+        if disp:
+            self.dispatchers[subreddit.display_name].run_submission(submission)
 
     def feed_comms(self, subreddit, comment):
         """
@@ -341,11 +341,9 @@ class plugin_manager():
         :param submission: comment instance
         """
 
-        for el in self.callbacks_coms:
-            if el.subreddit == None or el.subreddit == subreddit:
-                args = self.args.copy()
-                args["subreddit"] = subreddit
-                args["comment"] = comment
-                args["reddit"] = self.reddit
+        if self.given_watched_subs.get(subreddit.display_name, None):
+            self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
-                self.call_plugin_func(el, args)
+        disp = self.dispatchers.get(subreddit.display_name, None)
+        if disp:
+            disp.run_comment(comment)
