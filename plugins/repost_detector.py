@@ -9,7 +9,6 @@ MIN_WORD_LEN = 3 # Skip words shorter than
 MIN_WORDS_IN_TITLE = 5 # Skip titles shorter than
 MAX_AGE = timedata.SEC_IN_DAY * 7 # Maximum age to keep posts
 MIN_OVERLAP = 0.5 # Minumum overlap to report a post as repost
-MAX_OVERLAP = 1.0
 MAX_ACTION_TIME = timedata.SEC_IN_MIN # Maximum time to wait to take an action
 EDITORIALIZE_OVERLAP = 0.9 # Overlap under which title editorialization is reported
 SKIP_EDITORIALIZE_DOMAIN = ["imgur.com", "facebook.com"]
@@ -54,9 +53,7 @@ def clean_title(title):
     return no_shortw
 
 def calc_overlap(list1, list2):
-    setdiff = set(list1).symmetric_difference(set(list2))
-
-    return len(setdiff) / len(list1), len(setdiff) / len(list2)
+    return len(set(list1).difference(set(list2))) / len(list1), len(set(list1).difference(set(list2))) / len(list2)
 
 @hook.submission(wiki=wiki)
 def new_post(submission, storage, reddit_inst):
@@ -88,7 +85,7 @@ def new_post(submission, storage, reddit_inst):
         factor1, factor2 = calc_overlap(no_shortw, post["filtered"])
 
         logger.debug("[%s] Calculated repost factor %f/%f" % (submission.shortlink, factor1, factor2))
-        if factor1 > MIN_OVERLAP and factor2 > MIN_OVERLAP and factor1 < MAX_OVERLAP and factor2 < MAX_OVERLAP:
+        if factor1 > MIN_OVERLAP and factor2 > MIN_OVERLAP:
             post_sub = reddit_inst.submission(url=post["shortlink"])
             # Did the author remove it?
             if post_sub.author == None:
