@@ -66,6 +66,7 @@ class plugin_manager():
 
         self.watched_subs = dict(self.given_watched_subs)
 
+        print("Connecting to DB")
         # Create DB connection
         self.db = db_data(
             "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
@@ -83,12 +84,14 @@ class plugin_manager():
         # Set start time
         self.start_time = utils.utcnow()
 
+        print("Getting dispatchers")
         self.dispatchers = {}
         self.dispatchers[DISPATCH_ANY] = DispatchAll(self.plugin_args)
 
         # Get notifications from the hook module
         callbacks.append(self.add_plugin_function)
 
+        print("Loading plugins")
         # Load plugins
         for path in path_list:
             self.load_plugins(path)
@@ -98,12 +101,16 @@ class plugin_manager():
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
+        print("Running on start plugins")
         self.dispatchers[DISPATCH_ANY].run_on_start(False)
 
+        print("Creating periodic thread")
         # Create the periodic thread to trigger periodic events
         self.create_periodic_thread()
 
+        print("Watching subs")
         self.watch_subs(self.watched_subs.keys())
+        print("Startup done!")
 
     def get_subreddit(self, name):
         """
@@ -323,7 +330,7 @@ class plugin_manager():
         :param subreddit: subreddit where the submission was posted
         :param submission: submission instance
         """
-
+        #logger.debug("[%s] New submission %s" % (subreddit.display_name, submission.shortlink))
         if self.given_watched_subs.get(subreddit.display_name, None):
             self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
