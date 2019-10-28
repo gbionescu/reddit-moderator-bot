@@ -5,6 +5,7 @@ import logging
 import platform
 import shutil
 from shutil import copyfile
+from oslo_concurrency import lockutils
 
 logger = logging.getLogger("storage")
 logger.setLevel(logging.DEBUG)
@@ -30,30 +31,8 @@ class dstype():
         if data_obj:
             self.data = data_obj
 
-    def do_sync(self, obj, name, backup_name):
-        try:
-            logger.debug("Do sync on " + name)
-
-            # Check if the current file is valid
-            json.load(open(DS_LOC + name, "r"))
-
-            # If yes, do a backup
-            shutil.copy(DS_LOC + name, DS_LOC + backup_name)
-
-            logger.debug("Load/sync OK")
-        except:
-            print("Sync error when syncing %s" % name)
-            logger.debug("Sync error when syncing %s" % name)
-            import traceback; traceback.print_exc()
-
-        logger.debug("Open file")
-        file = open(DS_LOC + name, "w")
-
-        json.dump(obj, file, indent=4, sort_keys=True)
-        logger.debug("Sync finished")
-
     def sync(self):
-        self.do_sync(self.data, self.location, self.backup_name)
+        do_sync(self.data, self.location, self.backup_name)
 
     def get_obj(self, location):
         try:
@@ -94,3 +73,32 @@ class dsdict(dstype, collections.UserDict):
         collections.UserDict.__setitem__(self, key, value)
         self.sync()
         return self.data
+
+def do_sync(obj, name, backup_name):
+    @lockutils.synchronized(name)
+    def do_blocking_sync(obj, name, backup_name):
+        try:
+            logger.debug("Do sync on " + name)
+
+            # Check if the current file is valid
+            json.load(open(DS_LOC + name, "r"))
+
+            # If yes, do a backup
+            shutil.copy(DS_LOC + name, DS_LOC + backup_name)
+
+            logger.debug("Load/sync OK")
+        except:
+            print("Sync error when syncing %s" % name)
+            logger.debug("Sync error when syncing %s" % name)
+            import traceback; traceback.print_exc()
+
+        logger.debug("Open file")
+
+        out = json.dumps(obj, indent=4, sort_keys=True)
+        file = open(DS_LOC + name, "w")
+        file.write(out)
+        file.close()
+
+        logger.debug("Sync finished")
+
+    do_blocking_sync(obj, name, backup_name)
