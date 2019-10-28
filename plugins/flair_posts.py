@@ -262,6 +262,7 @@ def submission(subreddit, submission, storage):
     new["notif_level"] = 0
     new["max_level"] = wiki_config[subreddit].get_nb_levels()
     new["next_message"] = []
+    new["link_flair_text"] = ""
     for interval in wiki_config[subreddit].get_notif_time():
         new["next_message"].append(submission.created_utc + interval)
 
@@ -275,18 +276,52 @@ def submission(subreddit, submission, storage):
     storage["subs"][submission.shortlink] = new
     storage.sync()
 
-@hook.periodic(period=5, wiki=wiki)
+def flair_updater(subreddit, storage, reddit_inst):
+    if subreddit not in wiki_config:
+        return
+
+    to_remove = []
+    for post in list(storage["subs"].values()):
+        post_sub = reddit_inst.submission(url=post["shortlink"])
+
+        # Did the author remove it?
+        if post_sub.author == None:
+            to_remove.append(post)
+            continue
+        # Was it removed?
+        elif post_sub.is_crosspostable == False:
+            to_remove.append(post)
+            continue
+
+        if post_sub.link_flair_text not in [None, ""]:
+            post["link_flair_text"] = post_sub.link_flair_text
+            storage.sync()
+
+    # Clean up threads that are to be removed
+    for post in to_remove:
+        try:
+            del storage["subs"][post["shortlink"]]
+        except:
+            pass
+    if len(to_remove) > 0:
+        storage.sync()
+
+@hook.periodic(period=10, wiki=wiki)
 def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
     if subreddit not in wiki_config:
         return
 
-    tnow = utcnow()
     if "subs" not in storage:
         return
 
+    # Update the flairs first
+    flair_updater(subreddit, storage, reddit_inst)
+
+    tnow = utcnow()
+
     to_remove = []
     # Check each post
-    for post in storage["subs"].values():
+    for post in list(storage["subs"].values()):
         # If time has expired for the current notification level
         if post["max_level"] > post["notif_level"] and tnow - post["next_message"][post["notif_level"]] > 0:
 
@@ -296,21 +331,13 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
                 to_remove.append(post)
                 continue
 
-            temp = reddit_inst.submission(url=post["shortlink"])
-
-            # Did the author remove it?
-            if temp.author == None:
-                 to_remove.append(post)
-                 continue
-            # Was it removed?
-            elif temp.is_crosspostable == False:
-                to_remove.append(post)
-                continue
-
             # Has the user updated the flair?
-            if temp.link_flair_text is None or temp.link_flair_text is "":
+            if post["link_flair_text"] == "":
                 post["notif_level"] += 1
                 storage.sync()
+
+                if post["notif_level"] > post["max_level"]:
+                    raise ValueError()
 
                 # Fill out a list of parameters to replace in the message
                 args = {
@@ -323,7 +350,8 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
                 for k, v in args.items():
                     msg = msg.replace("${%s}" % k, str(v))
 
-                send_pm(temp.author, "Please flair your post", msg)
+                crt_sub = reddit_inst.submission(url=post["shortlink"])
+                send_pm(crt_sub.author, "Please flair your post", msg)
                 logger.info("Sent message %d for %s" % (post["notif_level"], post["shortlink"]))
             else:
                 to_remove.append(post)
@@ -332,30 +360,33 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
         if post["has_aflair"] and not post["aflair_done"] and tnow - post["aflair_time"] > 0:
             post["aflair_done"] = True
             storage.sync()
-            temp = reddit_inst.submission(url=post["shortlink"])
+            crt_sub = reddit_inst.submission(url=post["shortlink"])
 
             logger.info("Trying autoflair for %s" % post["shortlink"])
             proposed_flair = None
 
             # Check each autoflair block until one returns True
             for checker in wiki_config[subreddit].aflairs:
-                if checker.check(temp) == True:
+                if checker.check(crt_sub) == True:
                     proposed_flair = checker.flair
                     break
 
             # If there's a proposed flair, try adding it
             if proposed_flair:
-                for choice in temp.flair.choices():
+                for choice in crt_sub.flair.choices():
                     if choice["flair_css_class"] == proposed_flair:
-                        set_flair_id(temp, choice["flair_template_id"])
+                        set_flair_id(crt_sub, choice["flair_template_id"])
 
-        if post["max_level"] == post["notif_level"]:
+        if post["max_level"] <= post["notif_level"]:
             if not post["has_aflair"] or (post["has_aflair"] and post["aflair_done"]):
                 to_remove.append(post)
                 continue
 
     # Clean up threads that are to be removed
     for post in to_remove:
-        del storage["subs"][post["shortlink"]]
+        try:
+            del storage["subs"][post["shortlink"]]
+        except:
+            pass
     if len(to_remove) > 0:
         storage.sync()
