@@ -11,6 +11,7 @@ from modbot.log import botlog
 from modbot.hook import plugins_with_wikis
 
 logger = botlog("wiki")
+in_progress = False
 
 @hook.periodic(period=10)
 def refresh_wikis(plugin_manager):
@@ -34,6 +35,7 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
 
     # Get current config page
     crt_content = parse_wiki_content(sub_dispatcher.get_control_panel())
+    logger.debug("Got control panel for %s" % sub_dispatcher)
 
     # Add header
     content = "###\n"
@@ -111,4 +113,22 @@ def create_wikis(plugin_manager):
 
 @hook.periodic(period=30)
 def refresh_control_panels(plugin_manager):
-    create_wikis(plugin_manager)
+    global in_progress
+    print("Refresh control panels")
+
+    # If for some reason multiple refresh threads overlap
+    # only leave one running
+    # TODO use a semaphore
+    if in_progress:
+        print("Exiting because one is already running")
+        return
+    else:
+        print("Starting control panel update")
+
+    try:
+        in_progress = True
+        create_wikis(plugin_manager)
+    finally:
+        in_progress = False
+
+    print("Ended control panel update")

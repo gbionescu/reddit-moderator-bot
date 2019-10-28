@@ -94,7 +94,7 @@ class plugin_manager():
             self.load_plugins(path)
 
         # Only use reloading in debug
-        if with_reload:
+        if with_reload == "Yes":
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
@@ -271,7 +271,6 @@ class plugin_manager():
         for sub in sub_list:
             if sub != "all":
                 if self.bot.get_subreddit(sub).subreddit_type not in ["private", "user"]:
-                    print(self.bot.get_subreddit(sub).subreddit_type)
                     logger.debug("Skipping %s, because it's not a private subreddit and I'm watching /r/all" % sub)
                     continue
 
