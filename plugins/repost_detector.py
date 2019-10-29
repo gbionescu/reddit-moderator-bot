@@ -58,7 +58,7 @@ def calc_overlap(list1, list2):
             1.0 - len(set(list2).difference(set(list1))) / len(list2)
 
 @hook.submission(wiki=wiki)
-def new_post(submission, storage, reddit_inst):
+def new_post(submission, storage, reddit):
     if "subs" not in storage:
         storage["subs"] = {}
 
@@ -88,7 +88,7 @@ def new_post(submission, storage, reddit_inst):
 
         logger.debug("[%s] Calculated repost factor %f/%f" % (submission.shortlink, factor1, factor2))
         if factor1 > MIN_OVERLAP and factor2 > MIN_OVERLAP:
-            post_sub = reddit_inst.submission(url=post["shortlink"])
+            post_sub = reddit.get_submission(url=post["shortlink"])
             # Did the author remove it?
             if post_sub.author == None:
                 continue

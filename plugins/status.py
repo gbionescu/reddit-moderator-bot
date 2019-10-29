@@ -10,7 +10,7 @@ wiki = hook.register_wiki_page(
     subreddits=[hook.subreddit_type.MASTER_SUBREDDIT])
 
 @hook.on_start(wiki=wiki)
-def mark_startup(bot, wiki_pages):
+def mark_startup(wiki_pages):
     page = wiki_pages["bot_startup"][0]
     page.update_content()
 

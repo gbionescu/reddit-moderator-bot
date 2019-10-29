@@ -258,7 +258,7 @@ def submission(subreddit, submission, storage):
 
     # Check for duplicates
     if submission.shortlink in storage["subs"]:
-        logger.debug("[%s] Submission already added %s" % (submission.shortlink))
+        logger.debug("[%s] Submission already added" % (submission.shortlink))
         return
 
     logger.debug("[%s] New submission added" % (submission.shortlink))
@@ -283,13 +283,13 @@ def submission(subreddit, submission, storage):
     storage["subs"][submission.shortlink] = new
     storage.sync()
 
-def flair_updater(subreddit, storage, reddit_inst):
+def flair_updater(subreddit, storage, reddit):
     if subreddit.display_name not in wiki_config:
         return
 
     to_remove = []
     for post in list(storage["subs"].values()):
-        post_sub = reddit_inst.submission(url=post["shortlink"])
+        post_sub = reddit.get_submission(url=post["shortlink"])
 
         # Did the author remove it?
         if post_sub.author == None:
@@ -297,7 +297,7 @@ def flair_updater(subreddit, storage, reddit_inst):
             to_remove.append(post)
             continue
         # Was it removed?
-        elif post_sub.is_crosspostable == False:
+        elif post_sub.is_crosspostable == False and not post_sub.subreddit.is_private():
             logger.debug("[%s] Remove because deleted by mod" % (post["shortlink"]))
             to_remove.append(post)
             continue
@@ -316,7 +316,7 @@ def flair_updater(subreddit, storage, reddit_inst):
         storage.sync()
 
 @hook.periodic(period=10, wiki=wiki)
-def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
+def per(subreddit, storage, reddit):
     if subreddit.display_name not in wiki_config:
         logger.debug("[%s] Not in wiki config" % (subreddit.display_name))
         return
@@ -325,7 +325,7 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
         return
 
     # Update the flairs first
-    flair_updater(subreddit, storage, reddit_inst)
+    flair_updater(subreddit, storage, reddit)
 
     tnow = utcnow()
 
@@ -365,8 +365,8 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
                 for k, v in args.items():
                     msg = msg.replace("${%s}" % k, str(v))
 
-                crt_sub = reddit_inst.submission(url=post["shortlink"])
-                send_pm(crt_sub.author, "Please flair your post", msg)
+                crt_sub = reddit.get_submission(url=post["shortlink"])
+                crt_sub.author.send_pm("Please flair your post", msg)
                 logger.info("Sent message %d for %s" % (post["notif_level"], post["shortlink"]))
             else:
                 logger.debug("[%s] Remove because it has a flair" % (post["shortlink"]))
@@ -376,7 +376,7 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
         if post["has_aflair"] and not post["aflair_done"] and tnow - post["aflair_time"] > 0:
             post["aflair_done"] = True
             storage.sync()
-            crt_sub = reddit_inst.submission(url=post["shortlink"])
+            crt_sub = reddit.get_submission(url=post["shortlink"])
 
             logger.info("Trying autoflair for %s" % post["shortlink"])
             proposed_flair = None
@@ -392,7 +392,7 @@ def per(subreddit, storage, reddit_inst, send_pm, set_flair_id):
                 for choice in crt_sub.flair.choices():
                     if choice["flair_css_class"] == proposed_flair:
                         logger.debug("[%s] Setting autoflair %s" % (post["shortlink"], proposed_flair))
-                        set_flair_id(crt_sub, choice["flair_template_id"])
+                        crt_sub.set_flair_id(choice["flair_template_id"])
 
         if post["max_level"] <= post["notif_level"]:
             if not post["has_aflair"] or (post["has_aflair"] and post["aflair_done"]):
