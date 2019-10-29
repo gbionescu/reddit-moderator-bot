@@ -1,7 +1,6 @@
 import os
 import glob
 import importlib
-import threading
 import time
 import configparser
 import logging
@@ -16,6 +15,7 @@ from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
 from modbot.moderated_sub import DispatchAll, DispatchSubreddit
+from modbot.reddit import get_moderated_subs, get_subreddit, watch_sub, start_tick, get_submission
 
 logger = botlog("plugin")
 
@@ -41,7 +41,6 @@ class plugin_manager():
         """
         self.modules = []
 
-        self.watch_dict = {} # maps watched subreddits to threads
         self.plugin_threads = []
         self.per_last_exec = {}
         self.bot = bot_inst
@@ -52,43 +51,38 @@ class plugin_manager():
         # Functions loaded by plugins
         self.plugin_functions = []
 
-        # Dict of subreddit PRAW instances
-        self.sub_instances = {}
-        for sub in self.bot.get_moderated_subs():
-            self.sub_instances[sub] = self.bot.get_subreddit(sub)
-
-        self.master_sub = self.bot.get_subreddit(master_subreddit)
+        self.master_sub = get_subreddit(master_subreddit)
 
         # Save the given watched subreddits
         self.given_watched_subs = {}
-        for sub in self.bot.get_moderated_subs():
+        for sub in get_moderated_subs():
             self.given_watched_subs[sub] = True
 
         self.watched_subs = dict(self.given_watched_subs)
 
+        print("Connecting to DB")
         # Create DB connection
         self.db = db_data(
             "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
         self.plugin_args["plugin_manager"] = self
+        self.plugin_args["reddit"] = self
         self.plugin_args["config"] = self.config
         self.plugin_args["db"] = self.db
         self.plugin_args["schedule_call"] = self.schedule_call
-        self.plugin_args["bot"] = self.bot
-        self.plugin_args["send_pm"] = self.bot.send_pm
-        self.plugin_args["reddit_inst"] = self.bot.reddit
-        self.plugin_args["set_flair_id"] = self.bot.set_flair_id
 
         # Set start time
         self.start_time = utils.utcnow()
 
+        print("[%d] Getting dispatchers" % utils.utcnow())
         self.dispatchers = {}
         self.dispatchers[DISPATCH_ANY] = DispatchAll(self.plugin_args)
 
         # Get notifications from the hook module
         callbacks.append(self.add_plugin_function)
 
+        print("[%d] Loading plugins" % utils.utcnow())
         # Load plugins
         for path in path_list:
             self.load_plugins(path)
@@ -98,21 +92,25 @@ class plugin_manager():
             self.reloader = PluginReloader(self)
             self.reloader.start(path_list)
 
+        print("[%d] Running on start plugins" % utils.utcnow())
         self.dispatchers[DISPATCH_ANY].run_on_start(False)
 
+        print("[%d] Creating periodic thread" % utils.utcnow())
         # Create the periodic thread to trigger periodic events
-        self.create_periodic_thread()
+        start_tick(1.0, self.periodic_func)
 
+        print("[%d] Watching subs" % utils.utcnow())
         self.watch_subs(self.watched_subs.keys())
+        print("[%d] Startup done!" % utils.utcnow())
 
     def get_subreddit(self, name):
-        """
-        Get PRAW instance for a subreddit
-        """
-        if name not in self.sub_instances:
-            self.sub_instances[name] = self.bot.get_subreddit(name)
+        return get_subreddit(name)
 
-        return self.sub_instances[name]
+    def get_moderated_subs(self):
+        return get_moderated_subs()
+
+    def get_submission(self, url):
+        return get_submission(url)
 
     def schedule_call(self, func, when, args=[], kwargs={}):
         self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
@@ -138,7 +136,7 @@ class plugin_manager():
 
             # If nothing was specified, then the plugin is active on all moderated subs
             if sub_list == []:
-                sub_list = self.bot.get_moderated_subs()
+                sub_list = get_moderated_subs()
 
             for sub in sub_list:
                 if sub == hook.subreddit_type.MASTER_SUBREDDIT:
@@ -223,38 +221,20 @@ class plugin_manager():
             result = self._load_plugin(f)
             self.modules.append(result)
 
-    def create_periodic_thread(self):
-        """
-        Create a thread that launches periodic events
-        """
-        logger.debug("Starting periodic check thread")
-
-        periodic_thread = threading.Thread(
-                name="pmgr_thread",
-                target=self.periodic_func)
-
-        periodic_thread.setDaemon(True)
-        periodic_thread.start()
-
-    def periodic_func(self):
+    def periodic_func(self, tnow):
         """
         Trigger periodic events
         """
-        while True:
-            tnow = utils.utcnow()
 
-            for dispatch in self.dispatchers.values():
-                dispatch.run_periodic(self.start_time, tnow)
+        for dispatch in self.dispatchers.values():
+            dispatch.run_periodic(self.start_time, tnow)
 
-            # Wait 1s between checks
-            time.sleep(0.2)
-
-            # Account for threads
-            for thr in self.plugin_threads.copy():
-                if thr.is_alive():
-                    logger.debug("thread %s is still alive" % thr.name)
-                else:
-                    self.plugin_threads.remove(thr)
+        # Account for threads
+        for thr in self.plugin_threads.copy():
+            if thr.is_alive():
+                logger.debug("thread %s is still alive" % thr.name)
+            else:
+                self.plugin_threads.remove(thr)
 
     def watch_subs(self, sub_list):
         """
@@ -270,52 +250,13 @@ class plugin_manager():
 
         for sub in sub_list:
             if sub != "all":
-                if self.bot.get_subreddit(sub).subreddit_type not in ["private", "user"]:
+                if get_subreddit(sub).subreddit_type not in ["private", "user"]:
                     logger.debug("Skipping %s, because it's not a private subreddit and I'm watching /r/all" % sub)
                     continue
 
-            logger.debug("Watching " + sub)
-            sthread = threading.Thread(
-                    name="submissions_%s" % sub,
-                    target = self.thread_sub,
-                    args=(sub,))
-            sthread.setDaemon(True)
-            sthread.start()
+            watch_sub(sub, self.feed_sub, self.feed_comms)
 
-            cthread = threading.Thread(
-                    name="comments_%s" % sub,
-                    target = self.thread_comm,
-                    args=(sub,))
-            cthread.setDaemon(True)
-            cthread.start()
-
-            self.watch_dict[sub] = (sthread, cthread)
-
-    def thread_sub(self, sub):
-        """
-        Watch submissions and trigger submission events
-
-        :param sub: subreddit to watch
-        """
-
-        subreddit = self.bot.get_subreddit(sub)
-
-        for submission in subreddit.stream.submissions():
-            self.feed_sub(submission.subreddit, submission)
-
-    def thread_comm(self, sub):
-        """
-        Watch comments and trigger comments events
-
-        :param sub: subreddit to watch
-        """
-
-        subreddit = self.bot.get_subreddit(sub)
-
-        for comment in subreddit.stream.comments():
-            self.feed_comms(comment.subreddit, comment)
-
-    def feed_sub(self, subreddit, submission):
+    def feed_sub(self, submission):
         """
         Feeds a new submission to the plugin framework. This function calls
         plugins that match the submission.
@@ -324,14 +265,14 @@ class plugin_manager():
         :param submission: submission instance
         """
 
-        if self.given_watched_subs.get(subreddit.display_name, None):
+        if self.given_watched_subs.get(submission.subreddit_name, None):
             self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
-        disp = self.dispatchers.get(subreddit.display_name, None)
+        disp = self.dispatchers.get(submission.subreddit_name, None)
         if disp:
-            self.dispatchers[subreddit.display_name].run_submission(submission)
+            self.dispatchers[submission.subreddit_name].run_submission(submission)
 
-    def feed_comms(self, subreddit, comment):
+    def feed_comms(self, comment):
         """
         Feeds a new comment to the plugin framework. This function calls
         plugins that match the comment.
@@ -340,9 +281,9 @@ class plugin_manager():
         :param submission: comment instance
         """
 
-        if self.given_watched_subs.get(subreddit.display_name, None):
+        if self.given_watched_subs.get(comment.subreddit_name, None):
             self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
-        disp = self.dispatchers.get(subreddit.display_name, None)
+        disp = self.dispatchers.get(comment.subreddit_name, None)
         if disp:
             disp.run_comment(comment)
