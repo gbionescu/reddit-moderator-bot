@@ -17,7 +17,7 @@ class WatchedWiki():
 
         self.content = ""
         try:
-            self.content = self.sub.wiki[self.plugin.wiki_page].content_md
+            self.content = self.sub.wiki(self.plugin.wiki_page).get_content()
         except prawcore.exceptions.NotFound:
             logger.debug("Subreddit %s does not contain wiki %s. Creating it." %
                     (subreddit.display_name, self.plugin.wiki_page))
@@ -74,7 +74,7 @@ class WatchedWiki():
         Update page content and return True if changed, False otherwise
         """
         changed = False
-        self.content = self.sub.wiki[self.plugin.wiki_page].content_md
+        self.content = self.sub.wiki(self.plugin.wiki_page).get_content()
 
         if self.content != self.old_content:
             changed = True
@@ -92,7 +92,7 @@ class WatchedWiki():
             if self.documentation and with_documentation:
                 content = self.documentation + content
 
-            self.sub.wiki[self.plugin.wiki_page].edit(content)
+            self.sub.wiki(self.plugin.wiki_page).edit(content)
         else:
             logger.debug("Can't write to %s, because it's read only" % self.plugin.wiki_page)
 

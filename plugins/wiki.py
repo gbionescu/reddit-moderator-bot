@@ -18,7 +18,7 @@ def refresh_wikis(plugin_manager):
     """
     Refresh every wiki page and trigger update functions if needed
     """
-    for sub in plugin_manager.bot.get_moderated_subs():
+    for sub in plugin_manager.get_moderated_subs():
         for wiki in plugin_manager.dispatchers[sub].get_wiki_values():
             now = utils.utcnow()
             # Check if it's time to refresh
@@ -47,12 +47,13 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     if crt_content and "Enabled Plugins" in crt_content:
         for plugin in crt_content["Enabled Plugins"]:
             content += "%s\n" % plugin
-
+            logger.debug("[%s] Enabling plugin %s" % (sub_name, plugin))
             enabled_plugins.append(plugin)
 
     # Enable default enabled wikis
     for page in plugin_list:
         if page.default_enabled and page.wiki_page not in enabled_plugins:
+            logger.debug("[%s] Enabling default plugin %s" % (sub_name, page.wiki_page))
             enabled_plugins.append(page.wiki_page)
             content += "%s\n" % page.wiki_page
 
@@ -89,7 +90,7 @@ def create_wikis(plugin_manager):
 
     # Go through each moderated subreddit
     # TODO: handle situation where bot is invited to moderate after it's started
-    for sub in plugin_manager.bot.get_moderated_subs():
+    for sub in plugin_manager.get_moderated_subs():
         # Skip user pages
         if sub.startswith("u_"):
             continue

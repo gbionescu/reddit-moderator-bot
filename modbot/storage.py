@@ -87,6 +87,8 @@ def do_sync(obj, name, backup_name):
             shutil.copy(DS_LOC + name, DS_LOC + backup_name)
 
             logger.debug("Load/sync OK")
+        except FileNotFoundError:
+            pass
         except:
             print("Sync error when syncing %s" % name)
             logger.debug("Sync error when syncing %s" % name)

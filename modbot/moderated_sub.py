@@ -269,8 +269,10 @@ class DispatchSubreddit(DispatchAll):
         Get the control panel content
         """
         try:
-            self.crt_control_panel = self.subreddit.wiki["control_panel"].content_md
+            self.crt_control_panel = self.subreddit.wiki("control_panel").get_content()
         except:
+            import traceback
+            traceback.print_exc()
             return ""
         return self.crt_control_panel
 
@@ -283,7 +285,7 @@ class DispatchSubreddit(DispatchAll):
         content = content.strip()
         if self.crt_control_panel != content:
             logger.debug("Editing control panel for %s" % self)
-            return self.subreddit.wiki["control_panel"].edit(content)
+            return self.subreddit.wiki("control_panel").edit(content)
 
     def get_writable_wiki(self, wiki_page):
         """
