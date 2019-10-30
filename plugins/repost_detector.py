@@ -38,10 +38,6 @@ def clean_title(title):
             title.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower()
         ).split()
 
-    # If title contains less than MIN_WORDS_IN_TITLE words, exit, too short
-    if len(split) < MIN_WORDS_IN_TITLE:
-        return []
-
     # Remove words shorter than MIN_WORD_LEN
     no_shortw = []
     for word in split:
@@ -71,36 +67,38 @@ def new_post(submission, storage, reddit):
         logger.debug("[%s] Skipped because it's too old" % (submission.shortlink))
         return
 
-    no_shortw = clean_title(submission.title)
-    if len(no_shortw) == 0:
-        logger.debug("[%s] Title is too short" % (submission.shortlink))
-        return
-
     if submission.shortlink in storage["subs"]:
         logger.debug("[%s] Submission already added" % (submission.shortlink))
         return
 
-    # Check against old titles
-    for post in storage["subs"].values():
-        # Calculate two-way overlap factor
-        logger.debug("[%s] Checking\n\t%s\n\t%s" % (submission.shortlink, no_shortw, post["filtered"]))
-        factor1, factor2 = calc_overlap(no_shortw, post["filtered"])
+    no_shortw = clean_title(submission.title)
+    if len(no_shortw) < MIN_WORDS_IN_TITLE:
+        # Check against old titles
+        for post in storage["subs"].values():
+            # Calculate two-way overlap factor
+            logger.debug("[%s] Checking\n\t%s\n\t%s" % (submission.shortlink, no_shortw, post["filtered"]))
+            factor1, factor2 = calc_overlap(no_shortw, post["filtered"])
 
-        logger.debug("[%s] Calculated repost factor %f/%f" % (submission.shortlink, factor1, factor2))
-        if factor1 > MIN_OVERLAP and factor2 > MIN_OVERLAP:
-            post_sub = reddit.get_submission(url=post["shortlink"])
-            # Did the author remove it?
-            if post_sub.author == None:
-                continue
-            # Was it removed?
-            elif post_sub.is_crosspostable == False:
-                continue
+            logger.debug("[%s] Calculated repost factor %f/%f" % (submission.shortlink, factor1, factor2))
+            if factor1 > MIN_OVERLAP and factor2 > MIN_OVERLAP:
+                post_sub = reddit.get_submission(url=post["shortlink"])
+                # Did the author remove it?
+                if post_sub.author == None:
+                    continue
+                # Was it removed?
+                elif post_sub.is_crosspostable == False:
+                    continue
 
-            logger.debug("[%s] Reporting as dupe for %s / factor %f/%f" %
-                (submission.shortlink, post["shortlink"], factor1, factor2))
-            submission.report("Possible repost of %s, with a factor of %f/%f" % (post["shortlink"], factor1, factor2))
-            return
+                logger.debug("[%s] Reporting as dupe for %s / factor %f/%f" %
+                    (submission.shortlink, post["shortlink"], factor1, factor2))
+                submission.report("Possible repost of %s, with a factor of %f/%f" % (post["shortlink"], factor1, factor2))
+                return
+    else:
+        logger.debug("[%s] Title is too short" % (submission.shortlink))
 
+    #
+    # Changed title checker
+    #
     check_changed_title = True
     if not submission.is_self:
         for domain in SKIP_EDITORIALIZE_DOMAIN:
@@ -112,14 +110,17 @@ def new_post(submission, storage, reddit):
 
     # Check for a changed title
     if check_changed_title:
+        # Clean the title
         article_title = clean_title(get_title(submission.url))
 
+        # Check if it's valid
         if len(article_title) == 0:
             logger.debug("[%s] No title, could not check article" % (submission.shortlink))
             return
 
         logger.debug("[%s] Checking for editorialization\n\t%s\n\t%s" % (submission.shortlink, article_title, no_shortw))
 
+        # Calculate overlap two-way
         factor1, factor2 = calc_overlap(article_title, no_shortw)
         logger.debug("[%s] Calculated editorialized factor %f/%f" % (submission.shortlink, factor1, factor2))
 
