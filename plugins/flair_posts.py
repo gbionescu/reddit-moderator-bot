@@ -393,6 +393,7 @@ def per(subreddit, storage, reddit):
                     if choice["flair_css_class"] == proposed_flair:
                         logger.debug("[%s] Setting autoflair %s" % (post["shortlink"], proposed_flair))
                         crt_sub.set_flair_id(choice["flair_template_id"])
+                        to_remove.append(post)
 
         if post["max_level"] <= post["notif_level"]:
             if not post["has_aflair"] or (post["has_aflair"] and post["aflair_done"]):
