@@ -60,10 +60,12 @@ class plugin_manager():
 
         self.watched_subs = dict(self.given_watched_subs)
 
-        print("Connecting to DB")
-        # Create DB connection
-        self.db = db_data(
-            "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
+        self.db = None
+        if db_params:
+            print("Connecting to DB")
+            # Create DB connection
+            self.db = db_data(
+                "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
         self.plugin_args["plugin_manager"] = self
