@@ -61,4 +61,7 @@ class Parser(HTMLParser):
 
 
 def get_title(url):
-    return Parser(url).title
+    try:
+        return Parser(url).title
+    except:
+        return ""
