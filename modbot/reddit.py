@@ -1,7 +1,8 @@
 import traceback
 import threading
-import praw
+import praw, prawcore
 import time
+import base36
 from modbot.log import botlog
 from modbot.utils import utcnow, timedata
 from modbot.storage import dsdict
@@ -11,7 +12,8 @@ watch_dict = {} # maps watched subreddits to threads
 
 praw_credentials = None
 praw_user_agent = None
-praw_inst = None
+praw_inst = {} # Dictionary of praw sessions
+all_data = dsdict("all", "last_seen") # Last seen /r/all subs and comms
 subreddit_cache = {}
 
 wiki_storages = {}
@@ -83,6 +85,10 @@ class submission():
     def domain(self):
         return self._raw.domain
 
+    @property
+    def id(self):
+        return self._raw.id
+
     def report(self, reason):
         logger.debug("[%s] Reported with reason: %s" % (self, reason))
         self._raw.report(reason)
@@ -101,6 +107,10 @@ class comment():
     @property
     def subreddit(self):
         return get_subreddit(self._raw.subreddit.display_name)
+
+    @property
+    def id(self):
+        return self._raw.id
 
 class wiki():
     def __init__(self, reddit_wiki):
@@ -206,22 +216,32 @@ def set_praw_opts(credentials, user_agent):
     praw_credentials = credentials
     praw_user_agent = user_agent
 
-def get_praw():
+    # Start watching /r/all as soon as credentials are set
+    watch_all()
+
+def get_praw(name="default", force_create=False):
     """
     Get PRAW instance
     """
+    def create_session():
+        inst = None
+        if praw_credentials and praw_user_agent:
+            logger.debug("Creating PRAW instance")
+            inst = praw.Reddit(praw_credentials, user_agent=praw_user_agent)
+        else:
+            raise ValueError("PRAW credentials not set")
+
+        return inst
+
     global praw_inst
 
-    if praw_inst:
-        return praw_inst
+    if not force_create:
+        if name in praw_inst:
+            return praw_inst[name]
 
-    if praw_credentials and praw_user_agent:
-        logger.debug("Creating PRAW instance")
-        praw_inst = praw.Reddit(praw_credentials, user_agent=praw_user_agent)
-    else:
-        raise ValueError("PRAW credentials not set")
+    praw_inst[name] = create_session()
 
-    return praw_inst
+    return praw_inst[name]
 
 def get_subreddit(name):
     """
@@ -246,52 +266,92 @@ def get_moderated_subs():
 def get_submission(url):
     return submission(get_praw().submission(url=url))
 
-def watch_sub(subreddit_name, callback_sub, callback_comm):
-    def thread_sub(subreddit):
-        """
-        Watch submissions and trigger submission events
+def new_all_sub(sub):
+    all_data["sub_last_seen_str"] = sub.id
+    all_data["sub_last_seen_int"] = base36.loads(sub.id)
 
-        :param subreddit: subreddit to watch
-        """
+    if not "sub_last_fed_int" in all_data:
+        all_data["sub_last_fed_int"] = all_data["sub_last_seen_int"]
+        return
 
-        for sub in subreddit._raw.stream.submissions():
-            try:
-                callback_sub(submission(sub))
-            except:
-                import traceback; traceback.print_exc()
+    for sub_num in range(all_data["sub_last_fed_int"] + 1, all_data["sub_last_seen_int"]):
+        all_data["sub_last_fed_int"] = sub_num
 
+def new_all_comm(comm):
+    all_data["comm_last_seen_str"] = comm.id
+    all_data["comm_last_seen_int"] = base36.loads(comm.id)
 
-    def thread_comm(subreddit):
-        """
-        Watch comments and trigger comments events
+    if not "comm_last_fed_int" in all_data:
+        all_data["comm_last_fed_int"] = all_data["comm_last_seen_int"]
+        return
 
-        :param subreddit: subreddit to watch
-        """
+    for comm_num in range(all_data["comm_last_fed_int"] + 1, all_data["comm_last_seen_int"]):
+        all_data["comm_last_fed_int"] = comm_num
+        print(get_praw().info("t1" + base36.dumps(comm_num)))
 
-        for comm in subreddit._raw.stream.comments():
-            try:
-                callback_comm(comment(comm))
-            except:
-                import traceback; traceback.print_exc()
+def thread_sub():
+    """
+    Watch submissions and trigger submission events
 
-    logger.debug("Watching %s" % subreddit_name)
+    :param subreddit: subreddit to watch
+    """
 
-    sub = get_subreddit(subreddit_name)
+    while True:
+        session = get_praw("submissions_all")
+        try:
+            for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
+                new_all_sub(submission(sub))
+
+        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+            print('PRAW exception ' + str(e))
+            session = get_praw("submissions_all", True)
+
+        except Exception:
+            import traceback; traceback.print_exc()
+
+        # If a loop happens, sleep for a bit
+        time.sleep(0.1)
+
+def thread_comm():
+    """
+    Watch comments and trigger comments events
+
+    :param subreddit: subreddit to watch
+    """
+
+    while True:
+        session = get_praw("comments_all")
+        try:
+            for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
+                new_all_comm(comment(comm))
+
+        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+            print('PRAW exception ' + str(e))
+            session = get_praw("comments_all", True)
+
+        except Exception:
+            import traceback; traceback.print_exc()
+
+        # If a loop happens, sleep for a bit
+        time.sleep(0.1)
+
+def watch_all():
+    logger.debug("Watching all")
+
     sthread = threading.Thread(
-            name="submissions_%s" % subreddit_name,
-            target = thread_sub,
-            args=(sub,))
+            name="submissions_all",
+            target = thread_sub)
     sthread.setDaemon(True)
     sthread.start()
 
     cthread = threading.Thread(
-            name="comments_%s" % subreddit_name,
-            target = thread_comm,
-            args=(sub,))
+            name="comments_all",
+            target = thread_comm)
     cthread.setDaemon(True)
     cthread.start()
 
-    watch_dict[subreddit_name] = (sthread, cthread)
+def watch_sub(subreddit_name, callback_sub, callback_comm):
+    pass
 
 def update_all_wikis(tnow):
     global wiki_update_thread
