@@ -58,16 +58,33 @@ class dstype():
                 logger.error("Could not load " + self.location)
                 return None
 
+class dsobj(dstype, collections.UserDict):
+    def __init__(self, parent, name):
+        self._data = dsdict(parent, name)
+
+    def __getattr__(self, name):
+        if not name.startswith("_"):
+            try:
+                return self._data[name]
+            except KeyError:
+                # Handle hasattr
+                raise AttributeError
+        else:
+            return super().__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = value
+
 class dsdict(dstype, collections.UserDict):
     def __init__(self, parent, name):
         collections.UserDict.__init__(self)
         dstype.__init__(self, parent, name)
 
     def __getitem__(self, key):
-        try:
-            return collections.UserDict.__getitem__(self, key)
-        except:
-            return None
+        return collections.UserDict.__getitem__(self, key)
 
     def __setitem__(self, key, value):
         collections.UserDict.__setitem__(self, key, value)

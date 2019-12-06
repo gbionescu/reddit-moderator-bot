@@ -5,7 +5,7 @@ import time
 import base36
 from modbot.log import botlog
 from modbot.utils import utcnow, timedata
-from modbot.storage import dsdict
+from modbot.storage import dsdict, dsobj
 
 logger = botlog("redditif")
 watch_dict = {} # maps watched subreddits to threads
@@ -13,7 +13,7 @@ watch_dict = {} # maps watched subreddits to threads
 praw_credentials = None
 praw_user_agent = None
 praw_inst = {} # Dictionary of praw sessions
-all_data = dsdict("all", "last_seen") # Last seen /r/all subs and comms
+all_data = dsobj("all", "last_seen") # Last seen /r/all subs and comms
 subreddit_cache = {}
 
 wiki_storages = {}
@@ -267,26 +267,35 @@ def get_submission(url):
     return submission(get_praw().submission(url=url))
 
 def new_all_sub(sub):
-    all_data["sub_last_seen_str"] = sub.id
-    all_data["sub_last_seen_int"] = base36.loads(sub.id)
+    """
+    Mark that a new submission has been seen
+    """
+    # Set last seen ID
+    all_data.sub_seen_str = sub.id
+    all_data.sub_seen_int = base36.loads(sub.id)
 
-    if not "sub_last_fed_int" in all_data:
-        all_data["sub_last_fed_int"] = all_data["sub_last_seen_int"]
+    # Check if it has
+    if hasattr(all_data, "sub_fed_int") is False:
+        all_data.sub_fed_int = all_data.sub.sub_seen_int
         return
 
-    for sub_num in range(all_data["sub_last_fed_int"] + 1, all_data["sub_last_seen_int"]):
-        all_data["sub_last_fed_int"] = sub_num
+    for sub_num in range(all_data.sub_fed_int + 1, all_data.sub_seen_int):
+        all_data.sub_fed_int = sub_num
 
 def new_all_comm(comm):
-    all_data["comm_last_seen_str"] = comm.id
-    all_data["comm_last_seen_int"] = base36.loads(comm.id)
+    """
+    Mark that a new comment has been seen
+    """
+    # Set last seen ID
+    all_data.comm_seen_str = comm.id
+    all_data.comm_seen_int = base36.loads(comm.id)
 
-    if not "comm_last_fed_int" in all_data:
-        all_data["comm_last_fed_int"] = all_data["comm_last_seen_int"]
+    if hasattr(all_data, "comm_fed_int") is False:
+        all_data.comm_fed_int = all_data.comm_seen_int
         return
 
-    for comm_num in range(all_data["comm_last_fed_int"] + 1, all_data["comm_last_seen_int"]):
-        all_data["comm_last_fed_int"] = comm_num
+    for comm_num in range(all_data.comm_fed_int + 1, all_data.comm_seen_int):
+        all_data.comm_fed_int = comm_num
         print(get_praw().info("t1" + base36.dumps(comm_num)))
 
 def thread_sub():
