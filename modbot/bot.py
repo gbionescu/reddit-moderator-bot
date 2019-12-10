@@ -1,20 +1,24 @@
 import configparser
 from modbot.plugin import plugin_manager
-from modbot.reddit import set_praw_opts
+from modbot.reddit_wrapper import set_credentials, set_input_type
 
 class bot():
-    def __init__(self, bot_config_path):
+    def __init__(self, bot_config_path, backend="reddit"):
         """
         Create a bot instance.
         :param bot_config_path: path for the bot config file
+        :param backend: what backend to use to get submissions/comments
         """
 
         # Load config
         self.config = configparser.ConfigParser()
         self.config.read(bot_config_path)
 
+        # Set how data is fetched (either live from reddit or from a test framework)
+        set_input_type(backend)
+
         # Set PRAW options
-        set_praw_opts(self.config.get("reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
+        set_credentials(self.config.get("reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
 
         # Mark if running in test mode
         self.in_production = self.config.get("mode", "production", fallback=False)

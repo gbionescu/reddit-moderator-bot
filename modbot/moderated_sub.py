@@ -1,11 +1,11 @@
 import logging
-import threading
 import copy
 from modbot import utils
 from modbot.log import botlog
 from modbot.wiki_page import WatchedWiki
 from modbot.hook import callback_type
 from modbot.storage import dsdict
+from modbot.utils import BotThread
 logger = botlog("mod_sub")
 
 storage_cache = {}
@@ -134,7 +134,7 @@ class DispatchAll():
                 logging.exception("Exception when running " + str(element.func))
         if with_thread:
             #self.logger.debug("triggering " + str(el.func))
-            pthread = threading.Thread(
+            pthread = BotThread(
                 name="periodic_" + str(el.func),
                 target = trigger_func,
                 args=(el, {**self.plugin_args, **extra_args},))

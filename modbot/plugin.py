@@ -15,7 +15,7 @@ from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
 from modbot.moderated_sub import DispatchAll, DispatchSubreddit
-from modbot.reddit import get_moderated_subs, get_subreddit, watch_sub, start_tick, get_submission
+from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick, get_submission, watch_all
 
 logger = botlog("plugin")
 
@@ -101,9 +101,10 @@ class plugin_manager():
         # Create the periodic thread to trigger periodic events
         start_tick(1.0, self.periodic_func)
 
-        print("[%d] Watching subs" % utils.utcnow())
-        self.watch_subs(self.watched_subs.keys())
         print("[%d] Startup done!" % utils.utcnow())
+
+        # Start watching subreddits
+        watch_all(self.feed_sub, self.feed_comms)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -237,26 +238,6 @@ class plugin_manager():
                 logger.debug("thread %s is still alive" % thr.name)
             else:
                 self.plugin_threads.remove(thr)
-
-    def watch_subs(self, sub_list):
-        """
-        Entry point that tells the plugin manager which subreddits to watch.
-        Starts both submissions and comments watchers.
-
-        :param sub_list: list of subreddits to watch
-        """
-
-        sub_list = list(sub_list)
-        if "all" not in sub_list:
-            sub_list.append("all")
-
-        for sub in sub_list:
-            if sub != "all":
-                if get_subreddit(sub).subreddit_type not in ["private", "user"]:
-                    logger.debug("Skipping %s, because it's not a private subreddit and I'm watching /r/all" % sub)
-                    continue
-
-            watch_sub(sub, self.feed_sub, self.feed_comms)
 
     def feed_sub(self, submission):
         """
