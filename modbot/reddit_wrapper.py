@@ -13,7 +13,7 @@ watch_dict = {} # maps watched subreddits to threads
 bot_sub_hook = None
 bot_comm_hook = None
 backend = None
-all_data = dsobj("all", "last_seen") # Last seen /r/all subs and comms
+all_data = None
 subreddit_cache = {}
 
 wiki_storages = {}
@@ -92,6 +92,14 @@ class submission():
     def report(self, reason):
         logger.debug("[%s] Reported with reason: %s" % (self, reason))
         self._raw.report(reason)
+
+    @property
+    def flair(self):
+        return self._raw.flair
+
+    @property
+    def selftext(self):
+        return self._raw.selftext
 
 class comment():
     """
@@ -208,7 +216,11 @@ class user():
 
 def set_input_type(input_type):
     global backend
+    global all_data
     backend = importlib.import_module("modbot.input.%s" % input_type)
+
+    # Initialize objects that depend on the backend
+    all_data = dsobj("all", "last_seen") # Last seen /r/all subs and comms
 
 def set_credentials(credentials, user_agent):
     backend.set_praw_opts(credentials, user_agent)

@@ -29,7 +29,7 @@ These conditionals can be:
 - title_contains - list of words that should be in the title
 - body_contains - if it's a self-post, then it checks if the self-post contains any of the given words
 - domain - checks if the post is made from a specific domain
-- priority - prioritizes condition checking. By default a rule has priority 0. Lower priority numbers, will make a rule be evaluated in the beginning.
+- priority - prioritizes condition checking. By default a rule has priority 0. Lower priority numbers will make a rule be evaluated in the beginning.
 
 See the example below for a complete configuration:
 

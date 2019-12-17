@@ -1,9 +1,8 @@
 import threading
 import sys
+import time
 from os.path import dirname as d
 from os.path import abspath, join
-#root_dir = d(d(abspath(__file__)))
-#sys.path.append(root_dir)
 from modbot.storage import dsdict
 
 import pytest
@@ -45,3 +44,4 @@ def test_stor():
 
         if not keep_going:
             break
+        time.sleep(0.1)

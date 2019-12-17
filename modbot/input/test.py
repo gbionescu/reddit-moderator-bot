@@ -1,35 +1,24 @@
 import base36
 import datetime
 import modbot.utils as utils
-
-###############################################################################
-# Clean up storage
-###############################################################################
+from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
-clean_storage_loc("storage_test/")
-set_storage_loc("storage_test/")
 
-###############################################################################
-# Override time get function
-###############################################################################
 GLOBAL_TIME = 0
-def set_time(val):
-    global GLOBAL_TIME
-    GLOBAL_TIME = val
 
-def advance_time(val):
-    global GLOBAL_TIME
-    set_time(GLOBAL_TIME + val)
+# Cache of various objects
+cache_reddit = {}
+cache_subreddit = {}
+cache_submissions = {}
+cache_users = {}
 
-def get_time():
-    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
+set_initial_submission = None
+set_initial_comment = None
+new_all_sub = None
+new_all_comm = None
+time_trigger = None
+moderated_subs = None
 
-# Override time source
-utils.get_utcnow = get_time
-
-###############################################################################
-# Set custom thread implementation
-###############################################################################
 class TestThread():
     def __init__(self, target=None, name=None, args=()):
         self.name = name
@@ -45,10 +34,8 @@ class TestThread():
     def isAlive(self):
         return False
 
-utils.BotThread = TestThread
-###############################################################################
-
 class FakeSubreddit():
+
     class FakeWiki():
         def __init__(self, name, subreddit):
             self.name = name
@@ -67,6 +54,7 @@ class FakeSubreddit():
         self.wikis = {}
         self.submissions = []
         self.subreddit_type = ["public"]
+        self.sub_flairs = None
 
     @property
     def display_name(self):
@@ -87,12 +75,44 @@ class FakeSubreddit():
     def add_submission(self, submission):
         self.submissions.append(submission)
 
+    def set_flairs(self, flair_list):
+        self.sub_flairs = flair_list
+
 class FakeSubmission():
-    crt_id = 0
-    def __init__(self, subreddit_name, author_name, title):
+
+    class FakeFlair():
+        def __init__(self, flair_list, submission):
+            self.flair_list = flair_list
+            self.submission = submission
+            self.set_flair_id = None
+
+        def choices(self):
+            for flair in self.flair_list:
+                yield \
+                {
+                    "flair_css_class": flair,
+                    "flair_template_id": flair
+                }
+
+        def select(self, flair_id):
+            self.set_flair_id = flair_id
+
+    crt_id = 0 # static member to keep track of the global submission ID
+
+    def __init__(self, subreddit_name, author_name, title, body=None, link=None):
         self.id = base36.dumps(FakeSubmission.crt_id)
         self.shortlink = "https://redd.it/" + self.id
         self.created_utc = utils.utcnow()
+        self.body = body
+        self.link = link
+
+        self.selftext = ""
+        if body:
+            self.selftext = body
+
+        self.domain = "self"
+        if self.link:
+            self.domain = self.link.split("//")[1].split("/")[0].replace("www.", "")
 
         self.author = get_user(author_name)
         self.title = title
@@ -107,6 +127,21 @@ class FakeSubmission():
         # Add to global cache and increment submission id
         cache_submissions[self.id] = self
         FakeSubmission.crt_id += 1
+
+        self.flairs = None
+        # Create a flair instance for each submission
+        if self.subreddit.sub_flairs:
+            self.flairs = self.FakeFlair(self.subreddit.sub_flairs, self)
+
+    @property
+    def flair(self):
+        return self.flairs
+
+    @property
+    def is_self(self):
+        if self.body:
+            return True
+        return False
 
 class FakeUser():
     def __init__(self, name):
@@ -139,18 +174,57 @@ class FakePRAW():
 
         return cache_submissions[id]
 
-# Cache of various objects
-cache_reddit = {}
-cache_subreddit = {}
-cache_submissions = {}
-cache_users = {}
+def set_time(val):
+    global GLOBAL_TIME
+    GLOBAL_TIME = val
 
-set_initial_submission = None
-set_initial_comment = None
-new_all_sub = None
-new_all_comm = None
-time_trigger = None
-moderated_subs = None
+def advance_time(val):
+    global GLOBAL_TIME
+    set_time(GLOBAL_TIME + val)
+
+def get_time():
+    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
+
+def create_bot(test_subreddit):
+    """
+    Bring up bot logic
+    """
+    # Clean up storage
+    clean_storage_loc("storage_test/")
+    set_storage_loc("storage_test/")
+
+    # Override time source
+    utils.get_utcnow = get_time
+
+    # Hook up fake thread
+    utils.BotThread = TestThread
+
+    # Set subreddit where the bot is a moderator
+    set_moderated_subs([test_subreddit])
+
+    # Create the bot
+    bot(bot_config_path="tests/test-bot.ini", backend="test")
+
+    # Feed an initial submission
+    set_initial_sub(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title1"))
+
+    # Start up and wait for a while
+    for _ in range(10):
+        advance_time_60s()
+
+    # Create empty submissions
+    FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title2")
+    FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title3")
+
+    # Update last seen submission
+    new_all_sub(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title4"))
+
+    FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title5")
+    FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title6")
+
+    # Wait again for things to expire
+    for _ in range(10):
+        advance_time_60s()
 
 def set_praw_opts(credentials, user_agent):
     """
