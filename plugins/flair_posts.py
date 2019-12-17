@@ -195,15 +195,18 @@ class Flair():
         """
         Get number of notification levels
         """
-        if len(self.message_intervals) > 0:
-            return len(self.message_intervals)
-        else:
+        if not self.message_intervals or len(self.message_intervals) == 0:
             return 0
+
+        return len(self.message_intervals)
 
     def get_autoflair_int(self):
         return self.autoflair * timedata.SEC_IN_MIN
 
     def get_notif_time(self):
+        if not self.message_intervals:
+            return
+
         for i in self.message_intervals:
             yield i * timedata.SEC_IN_MIN
 

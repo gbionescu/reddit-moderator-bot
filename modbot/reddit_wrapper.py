@@ -273,7 +273,7 @@ def new_all_sub(sub):
     # Set last seen
     set_seen_submission(sub)
 
-    for sub_num in range(all_data.sub_fed_int + 1, all_data.sub_seen_int):
+    for sub_num in range(all_data.sub_fed_int + 1, all_data.sub_seen_int + 1):
         sub = get_submission("https://redd.it/" + base36.dumps(sub_num))
         #print("Feeding new sub " + str(sub.id))
         set_fed_submission(sub)

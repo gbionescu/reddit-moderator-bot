@@ -27,10 +27,6 @@ class timedata:
 def get_utcnow():
     return datetime.datetime.utcnow()
 
-def set_time_source(func):
-    global get_utcnow
-    get_utcnow = func
-
 def utcnow():
     return (get_utcnow() - datetime.datetime(1970, 1, 1)).total_seconds()
 

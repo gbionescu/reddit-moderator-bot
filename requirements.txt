@@ -1,5 +1,4 @@
 praw
 configparser
-pickle
 oslo_concurrency
 base36

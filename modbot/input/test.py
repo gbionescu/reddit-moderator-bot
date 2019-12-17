@@ -1,8 +1,52 @@
 import base36
-# Import before importing the bot
-# Sets up test environment
-import tests.test_utils as tutils
-from modbot.utils import utcnow
+import datetime
+import modbot.utils as utils
+
+###############################################################################
+# Clean up storage
+###############################################################################
+from modbot.storage import set_storage_loc, clean_storage_loc
+clean_storage_loc("storage_test/")
+set_storage_loc("storage_test/")
+
+###############################################################################
+# Override time get function
+###############################################################################
+GLOBAL_TIME = 0
+def set_time(val):
+    global GLOBAL_TIME
+    GLOBAL_TIME = val
+
+def advance_time(val):
+    global GLOBAL_TIME
+    set_time(GLOBAL_TIME + val)
+
+def get_time():
+    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
+
+# Override time source
+utils.get_utcnow = get_time
+
+###############################################################################
+# Set custom thread implementation
+###############################################################################
+class TestThread():
+    def __init__(self, target=None, name=None, args=()):
+        self.name = name
+        self.target = target
+        self.args = args
+
+    def setDaemon(self, state):
+        pass
+
+    def start(self):
+        self.target(*self.args)
+
+    def isAlive(self):
+        return False
+
+utils.BotThread = TestThread
+###############################################################################
 
 class FakeSubreddit():
     class FakeWiki():
@@ -48,7 +92,7 @@ class FakeSubmission():
     def __init__(self, subreddit_name, author_name, title):
         self.id = base36.dumps(FakeSubmission.crt_id)
         self.shortlink = "https://redd.it/" + self.id
-        self.created_utc = utcnow()
+        self.created_utc = utils.utcnow()
 
         self.author = get_user(author_name)
         self.title = title
@@ -172,17 +216,17 @@ def tick(period, trigger):
     time_trigger = trigger
 
 def do_tick():
-    time_trigger(utcnow())
+    time_trigger(utils.utcnow())
 
 def advance_time_30s():
     for _ in range(30):
         do_tick()
-        tutils.advance_time(1)
+        advance_time(1)
 
 def advance_time_60s():
     for _ in range(60):
         do_tick()
-        tutils.advance_time(1)
+        advance_time(1)
 
 def set_moderated_subs(lst):
     global moderated_subs
