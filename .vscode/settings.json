@@ -1,0 +1,13 @@
+{
+    "python.testing.pytestArgs": [
+        "tests",
+        "--cov-config=tests/.coveragerc",
+        "--cov=modbot",
+        "--cov=plugins",
+        "--cov=database",
+        "--no-cov"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestEnabled": true
+}
