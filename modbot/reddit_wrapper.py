@@ -14,11 +14,10 @@ bot_sub_hook = None
 bot_comm_hook = None
 backend = None
 all_data = None
-subreddit_cache = {}
+subreddit_cache = None
+wiki_storages = None
 
-wiki_storages = {}
-
-last_wiki_update = utcnow()
+last_wiki_update = None
 wiki_update_thread = None
 WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 
@@ -217,10 +216,16 @@ class user():
 def set_input_type(input_type):
     global backend
     global all_data
+    global wiki_storages
+    global subreddit_cache
+    global last_wiki_update
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
     # Initialize objects that depend on the backend
     all_data = dsobj("all", "last_seen") # Last seen /r/all subs and comms
+    wiki_storages = {}
+    subreddit_cache = {}
+    last_wiki_update = utcnow()
 
 def set_credentials(credentials, user_agent):
     backend.set_praw_opts(credentials, user_agent)

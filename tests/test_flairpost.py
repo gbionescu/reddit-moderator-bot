@@ -7,12 +7,7 @@ enable_flair_posts = """
 flair_posts
 """
 
-def test_flair_warning():
-    enable_flair_posts = """
-    [Enabled Plugins]
-    flair_posts
-    """
-
+def check_flair_warning():
     wiki_flair_posts = """
     [Setup]
     message_intervals = 5, 7, 9, 10, 15, 20, 25
@@ -24,8 +19,6 @@ def test_flair_warning():
     title_contains = ["testa", "testb"]
     flair_css_class = "testflair"
     """
-
-    test.create_bot(TEST_SUBREDDIT)
     sub = test.get_subreddit(TEST_SUBREDDIT)
 
     # Update flair posts control panel
@@ -35,13 +28,12 @@ def test_flair_warning():
     # Give some time to the bot to get the new wiki configuration
     test.advance_time_60s()
 
-    # Create a new sub that we will be testing against
+    # Create a new submissino that we will be testing against
     test_submission = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1", title="title_test")
     test.new_all_sub(test_submission)
 
     # Give the bot time to send all messages
-    for _ in range(30):
-        test.advance_time_60s()
+    test.advance_time_30m()
 
     user = test.get_user("JohnDoe1")
 
@@ -57,7 +49,7 @@ def test_flair_warning():
         msg_no += 1
         user.inbox = user.inbox[1:]
 
-def test_autoflair():
+def check_auto_flair():
     wiki_flair_posts = """
     [Setup]
     autoflair = 1
@@ -88,8 +80,6 @@ def test_autoflair():
     flair_css_class = "testflair6"
     priority = 40
     """
-
-    test.create_bot(TEST_SUBREDDIT)
 
     sub = test.get_subreddit(TEST_SUBREDDIT)
     # Update flair posts control panel
@@ -170,3 +160,10 @@ def test_autoflair():
         test.advance_time_60s()
 
     assert(test_submission5.flairs.set_flair_id == "testflair6")
+
+
+def test_flair_posts():
+    test.create_bot(TEST_SUBREDDIT)
+
+    check_flair_warning()
+    check_auto_flair()

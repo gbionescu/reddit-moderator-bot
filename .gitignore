@@ -8,3 +8,5 @@ data/
 storage_*/
 .vscode/*
 .pytest_cache/*
+tests/cov*
+.coverage

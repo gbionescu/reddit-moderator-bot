@@ -1,24 +1,9 @@
 import base36
 import datetime
+###############################################################################
+# Override default thread implementation
+###############################################################################
 import modbot.utils as utils
-from modbot.bot import bot
-from modbot.storage import set_storage_loc, clean_storage_loc
-
-GLOBAL_TIME = 0
-
-# Cache of various objects
-cache_reddit = {}
-cache_subreddit = {}
-cache_submissions = {}
-cache_users = {}
-
-set_initial_submission = None
-set_initial_comment = None
-new_all_sub = None
-new_all_comm = None
-time_trigger = None
-moderated_subs = None
-
 class TestThread():
     def __init__(self, target=None, name=None, args=()):
         self.name = name
@@ -33,6 +18,44 @@ class TestThread():
 
     def isAlive(self):
         return False
+
+# Hook up fake thread
+utils.BotThread = TestThread
+###############################################################################
+
+###############################################################################
+# Override time source
+###############################################################################
+GLOBAL_TIME = 0
+def set_time(val):
+    global GLOBAL_TIME
+    GLOBAL_TIME = val
+
+def advance_time(val):
+    global GLOBAL_TIME
+    set_time(GLOBAL_TIME + val)
+
+def get_time():
+    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
+
+utils.get_utcnow = get_time
+###############################################################################
+
+from modbot.bot import bot
+from modbot.storage import set_storage_loc, clean_storage_loc
+
+# Cache of various objects
+cache_reddit = {}
+cache_subreddit = {}
+cache_submissions = {}
+cache_users = {}
+
+set_initial_submission = None
+set_initial_comment = None
+new_all_sub = None
+new_all_comm = None
+time_trigger = None
+moderated_subs = None
 
 class FakeSubreddit():
 
@@ -174,17 +197,6 @@ class FakePRAW():
 
         return cache_submissions[id]
 
-def set_time(val):
-    global GLOBAL_TIME
-    GLOBAL_TIME = val
-
-def advance_time(val):
-    global GLOBAL_TIME
-    set_time(GLOBAL_TIME + val)
-
-def get_time():
-    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
-
 def create_bot(test_subreddit):
     """
     Bring up bot logic
@@ -192,12 +204,6 @@ def create_bot(test_subreddit):
     # Clean up storage
     clean_storage_loc("storage_test/")
     set_storage_loc("storage_test/")
-
-    # Override time source
-    utils.get_utcnow = get_time
-
-    # Hook up fake thread
-    utils.BotThread = TestThread
 
     # Set subreddit where the bot is a moderator
     set_moderated_subs([test_subreddit])
@@ -209,22 +215,21 @@ def create_bot(test_subreddit):
     set_initial_sub(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title1"))
 
     # Start up and wait for a while
-    for _ in range(10):
-        advance_time_60s()
+    advance_time_10m()
 
-    # Create empty submissions
+    # Create more empty submissions
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title2")
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title3")
 
     # Update last seen submission
     new_all_sub(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title4"))
 
+    # Create more empty submissions
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title5")
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title6")
 
-    # Wait again for things to expire
-    for _ in range(10):
-        advance_time_60s()
+    # Wait again for things to settle
+    advance_time_10m()
 
 def set_praw_opts(credentials, user_agent):
     """
@@ -299,6 +304,21 @@ def advance_time_30s():
 
 def advance_time_60s():
     for _ in range(60):
+        do_tick()
+        advance_time(1)
+
+def advance_time_10m():
+    for _ in range(60*10):
+        do_tick()
+        advance_time(1)
+
+def advance_time_30m():
+    for _ in range(60*30):
+        do_tick()
+        advance_time(1)
+
+def advance_time_1h():
+    for _ in range(60*60):
         do_tick()
         advance_time(1)
 

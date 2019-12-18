@@ -8,9 +8,9 @@ from shutil import copyfile
 from oslo_concurrency import lockutils
 
 logger = logging.getLogger("storage")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 fh = logging.FileHandler("storage.log")
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.ERROR)
 logger.addHandler(fh)
 
 DS_LOC = "storage_data/"
