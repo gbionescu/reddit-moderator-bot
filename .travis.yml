@@ -1,6 +1,14 @@
 language: python
 python:
   - "3.7"
-# command to install dependencies
+
+before_install:
+  pip3 install codecov
+
 install:
   - pip install -r requirements.txt
+
+script: python3 -m pytest --cov=modbot --cov-report=xml:tests/cov.xml --cov-report=html:tests/cov.html --cov-config=tests/.coveragerc --cov=modbot --cov=plugins --cov=database
+
+after_success:
+  - codecov
