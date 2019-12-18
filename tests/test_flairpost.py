@@ -142,8 +142,7 @@ def check_auto_flair():
     test.new_all_sub(test_submission4)
 
     # Give the bot time to send all messages
-    for _ in range(30):
-        test.advance_time_60s()
+    test.advance_time_30m()
 
     assert(test_submission4.flairs.set_flair_id == "testflair4")
 
@@ -156,14 +155,78 @@ def check_auto_flair():
     test.new_all_sub(test_submission5)
 
     # Give the bot time to send all messages
-    for _ in range(30):
-        test.advance_time_60s()
+    test.advance_time_30m()
 
     assert(test_submission5.flairs.set_flair_id == "testflair6")
 
+def check_corner_cases():
+    wiki_flair_posts = """
+    [Setup]
+    message_intervals = 2, 30
+
+    message = message ${MESSAGE_NO}/${MAX_MESSAGES}/${SUBMISSION_LINK}
+    """
+    sub = test.get_subreddit(TEST_SUBREDDIT)
+
+    # Update flair posts control panel
+    sub.edit_wiki("control_panel", enable_flair_posts)
+    sub.edit_wiki("flair_posts", wiki_flair_posts)
+
+    # Give some time to the bot to get the new wiki configuration
+    test.advance_time_10m()
+
+    # Create new submissions
+    test_submission1 = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="JohnDoe123",
+        title="random title")
+
+    test_submission2 = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="JohnDoe123",
+        title="random title")
+
+    test_submission3 = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="JohnDoe123",
+        title="random title")
+
+    test.new_all_sub(test_submission3)
+
+    # Advance a few minutes so that one message is sent
+    test.advance_time_10m()
+
+    # Remove it by a mod
+    test_submission1.delete_by_mod()
+
+    # Remove it by the author
+    test_submission2.delete_by_author()
+
+    # Add flair by user
+    test_submission3.set_link_flair_text("asdfg")
+
+    # Give the bot time to remove the posts from queues
+    test.advance_time_30m()
+    test.advance_time_30m()
+
+    user = test.get_user("JohnDoe123")
+
+    # Check that 2 messages have been sent
+    assert(len(user.inbox) == 3)
+
+    # Try to exceed minimum trigger time
+    test_submission4 = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="granular",
+        title="random title")
+    test.advance_time_10m()
+    test.new_all_sub(test_submission4)
+
+    assert(len(test.get_user("granular").inbox) == 0)
 
 def test_flair_posts():
     test.create_bot(TEST_SUBREDDIT)
 
     check_flair_warning()
     check_auto_flair()
+    check_corner_cases()

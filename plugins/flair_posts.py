@@ -201,7 +201,9 @@ class Flair():
         return len(self.message_intervals)
 
     def get_autoflair_int(self):
-        return self.autoflair * timedata.SEC_IN_MIN
+        if self.autoflair:
+            return self.autoflair * timedata.SEC_IN_MIN
+        return None
 
     def get_notif_time(self):
         if not self.message_intervals:
@@ -346,7 +348,7 @@ def per(subreddit, storage, reddit):
                 continue
 
             # Has the user updated the flair?
-            if post["link_flair_text"] == "":
+            if post["link_flair_text"] in [None, ""]:
                 post["notif_level"] += 1
                 storage.sync()
 
@@ -371,10 +373,6 @@ def per(subreddit, storage, reddit):
                 crt_sub = reddit.get_submission(url=post["shortlink"])
                 crt_sub.author.send_pm("Please flair your post", msg)
                 logger.info("Sent message %d for %s" % (post["notif_level"], post["shortlink"]))
-            else:
-                logger.debug("[%s] Remove because it has a flair" % (post["shortlink"]))
-                to_remove.append(post)
-                continue
 
         if post["has_aflair"] and not post["aflair_done"] and tnow - post["aflair_time"] > 0:
             post["aflair_done"] = True

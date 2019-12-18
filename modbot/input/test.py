@@ -166,6 +166,15 @@ class FakeSubmission():
             return True
         return False
 
+    def delete_by_author(self):
+        self.author = None
+
+    def delete_by_mod(self):
+        self.is_crosspostable = False
+
+    def set_link_flair_text(self, link_flair_text):
+        self.link_flair_text = link_flair_text
+
 class FakeUser():
     def __init__(self, name):
         self.name = name
