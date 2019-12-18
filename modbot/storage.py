@@ -8,9 +8,9 @@ from shutil import copyfile
 from oslo_concurrency import lockutils
 
 logger = logging.getLogger("storage")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 fh = logging.FileHandler("storage.log")
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.ERROR)
 logger.addHandler(fh)
 
 DS_LOC = "storage_data/"
@@ -36,27 +36,39 @@ class dstype():
 
     def get_obj(self, location):
         try:
-            if platform.system() == "Windows":
-                logger.info("Load file %s windows" % location)
-                data = json.load(open(self.get_win_path(DS_LOC + location), "r"))
-            else:
+            if os.path.isfile(location):
                 logger.info("Load file %s linux" % location)
                 data = json.load(open(DS_LOC + location, "r"))
-            return data
-        except:
-            logger.error("Trying backup %s" % location)
-            try:
+                return data
+            elif os.path.isfile(DS_LOC + self.backup_name):
+                logger.error("Trying backup %s" % (DS_LOC + self.backup_name))
                 # Try the backup
-                if platform.system() == "Windows":
-                    data = json.load(open(self.get_win_path( DS_LOC + self.backup_name), "r"))
-                else:
-                    data = json.load(open(DS_LOC + self.backup_name, "r"))
-
+                data = json.load(open(DS_LOC + self.backup_name, "r"))
                 logger.critical("Loaded backup for " + self.location)
                 return data
-            except:
-                logger.error("Could not load " + self.location)
-                return None
+        except:
+            logger.error("Could not load " + self.location)
+            return None
+
+class dsobj():
+    def __init__(self, parent, name):
+        self._data = dsdict(parent, name)
+
+    def __getattr__(self, name):
+        if not name.startswith("_"):
+            try:
+                return self._data[name]
+            except KeyError:
+                # Handle hasattr
+                raise AttributeError
+        else:
+            return super().__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = value
 
 class dsdict(dstype, collections.UserDict):
     def __init__(self, parent, name):
@@ -64,10 +76,7 @@ class dsdict(dstype, collections.UserDict):
         dstype.__init__(self, parent, name)
 
     def __getitem__(self, key):
-        try:
-            return collections.UserDict.__getitem__(self, key)
-        except:
-            return None
+        return collections.UserDict.__getitem__(self, key)
 
     def __setitem__(self, key, value):
         collections.UserDict.__setitem__(self, key, value)
@@ -78,15 +87,16 @@ def do_sync(obj, name, backup_name):
     @lockutils.synchronized(name)
     def do_blocking_sync(obj, name, backup_name):
         try:
-            logger.debug("Do sync on " + name)
+            if os.path.isfile(DS_LOC + name):
+                logger.debug("Do sync on " + name)
 
-            # Check if the current file is valid
-            json.load(open(DS_LOC + name, "r"))
+                # Check if the current file is valid
+                json.load(open(DS_LOC + name, "r"))
 
-            # If yes, do a backup
-            shutil.copy(DS_LOC + name, DS_LOC + backup_name)
+                # If yes, do a backup
+                shutil.copy(DS_LOC + name, DS_LOC + backup_name)
 
-            logger.debug("Load/sync OK")
+                logger.debug("Load/sync OK")
         except FileNotFoundError:
             pass
         except:
@@ -104,3 +114,15 @@ def do_sync(obj, name, backup_name):
         logger.debug("Sync finished")
 
     do_blocking_sync(obj, name, backup_name)
+
+def set_storage_loc(location):
+    global DS_LOC
+    DS_LOC = location
+
+def clean_storage_loc(location):
+    import shutil
+
+    try:
+        shutil.rmtree(location)
+    except:
+        pass

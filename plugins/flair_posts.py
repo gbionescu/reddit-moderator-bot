@@ -29,7 +29,7 @@ These conditionals can be:
 - title_contains - list of words that should be in the title
 - body_contains - if it's a self-post, then it checks if the self-post contains any of the given words
 - domain - checks if the post is made from a specific domain
-- priority - prioritizes condition checking. By default a rule has priority 0. Lower priority numbers, will make a rule be evaluated in the beginning.
+- priority - prioritizes condition checking. By default a rule has priority 0. Lower priority numbers will make a rule be evaluated in the beginning.
 
 See the example below for a complete configuration:
 
@@ -195,15 +195,18 @@ class Flair():
         """
         Get number of notification levels
         """
-        if len(self.message_intervals) > 0:
-            return len(self.message_intervals)
-        else:
+        if not self.message_intervals or len(self.message_intervals) == 0:
             return 0
+
+        return len(self.message_intervals)
 
     def get_autoflair_int(self):
         return self.autoflair * timedata.SEC_IN_MIN
 
     def get_notif_time(self):
+        if not self.message_intervals:
+            return
+
         for i in self.message_intervals:
             yield i * timedata.SEC_IN_MIN
 

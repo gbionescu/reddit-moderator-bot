@@ -5,5 +5,8 @@ __pycache__
 *.ini
 *.pyc
 data/
-storage_data/
+storage_*/
 .vscode/*
+.pytest_cache/*
+tests/cov*
+.coverage

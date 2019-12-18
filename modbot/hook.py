@@ -30,7 +30,7 @@ class plugin_function():
         self.ctype = ctype
         self.args = kwargs
         self.path = path
-        self.args = inspect.getargspec(func)[0]
+        self.args = inspect.getfullargspec(func)[0]
 
         self.wiki = None
         self.subreddit = None

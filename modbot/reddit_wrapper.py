@@ -1,22 +1,23 @@
 import traceback
-import threading
-import praw
 import time
+import base36
+import logging
+import importlib
 from modbot.log import botlog
-from modbot.utils import utcnow, timedata
-from modbot.storage import dsdict
+from modbot.utils import utcnow, timedata, BotThread
+from modbot.storage import dsdict, dsobj
 
-logger = botlog("redditif")
+logger = botlog("reddit_wrapper", console=logging.DEBUG)
 watch_dict = {} # maps watched subreddits to threads
 
-praw_credentials = None
-praw_user_agent = None
-praw_inst = None
-subreddit_cache = {}
+bot_sub_hook = None
+bot_comm_hook = None
+backend = None
+all_data = None
+subreddit_cache = None
+wiki_storages = None
 
-wiki_storages = {}
-
-last_wiki_update = utcnow()
+last_wiki_update = None
 wiki_update_thread = None
 WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 
@@ -83,9 +84,21 @@ class submission():
     def domain(self):
         return self._raw.domain
 
+    @property
+    def id(self):
+        return self._raw.id
+
     def report(self, reason):
         logger.debug("[%s] Reported with reason: %s" % (self, reason))
         self._raw.report(reason)
+
+    @property
+    def flair(self):
+        return self._raw.flair
+
+    @property
+    def selftext(self):
+        return self._raw.selftext
 
 class comment():
     """
@@ -101,6 +114,10 @@ class comment():
     @property
     def subreddit(self):
         return get_subreddit(self._raw.subreddit.display_name)
+
+    @property
+    def id(self):
+        return self._raw.id
 
 class wiki():
     def __init__(self, reddit_wiki):
@@ -122,7 +139,7 @@ class wiki():
         storage.sync()
 
     def edit(self, content):
-        get_subreddit(self.subreddit_name)._raw.wiki[self.name].edit(content)
+        backend.edit_wiki(get_subreddit(self.subreddit_name)._raw, self.name, content)
 
     def get_content(self):
         return self.content
@@ -174,7 +191,7 @@ class subreddit():
 
                 self.wikis[name] = wiki_stored(wiki_storages[str(self)][name])
             else:
-                self.wikis[name] = wiki(self._raw.wiki[name])
+                self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
 
         return self.wikis[name]
 
@@ -196,32 +213,22 @@ class user():
 
         self._raw.message(subject, text)
 
-def set_praw_opts(credentials, user_agent):
-    """
-    Set authentication options
-    """
-    global praw_credentials
-    global praw_user_agent
+def set_input_type(input_type):
+    global backend
+    global all_data
+    global wiki_storages
+    global subreddit_cache
+    global last_wiki_update
+    backend = importlib.import_module("modbot.input.%s" % input_type)
 
-    praw_credentials = credentials
-    praw_user_agent = user_agent
+    # Initialize objects that depend on the backend
+    all_data = dsobj("all", "last_seen") # Last seen /r/all subs and comms
+    wiki_storages = {}
+    subreddit_cache = {}
+    last_wiki_update = utcnow()
 
-def get_praw():
-    """
-    Get PRAW instance
-    """
-    global praw_inst
-
-    if praw_inst:
-        return praw_inst
-
-    if praw_credentials and praw_user_agent:
-        logger.debug("Creating PRAW instance")
-        praw_inst = praw.Reddit(praw_credentials, user_agent=praw_user_agent)
-    else:
-        raise ValueError("PRAW credentials not set")
-
-    return praw_inst
+def set_credentials(credentials, user_agent):
+    backend.set_praw_opts(credentials, user_agent)
 
 def get_subreddit(name):
     """
@@ -229,7 +236,7 @@ def get_subreddit(name):
     """
     if name not in subreddit_cache:
         logger.debug("Added sub %s to cache" % name)
-        subreddit_cache[name] = subreddit(get_praw().subreddit(name))
+        subreddit_cache[name] = subreddit(backend.get_reddit().subreddit(name))
 
     return subreddit_cache[name]
 
@@ -237,61 +244,130 @@ def get_moderated_subs():
     """
     Get list of moderated subreddits
     """
-    for i in get_praw().user.moderator_subreddits():
+    for i in backend.get_reddit().user.moderator_subreddits():
         if i.display_name.startswith("u_"):
             continue
 
         yield i.display_name
 
 def get_submission(url):
-    return submission(get_praw().submission(url=url))
+    return submission(backend.get_reddit().submission(url=url))
 
-def watch_sub(subreddit_name, callback_sub, callback_comm):
-    def thread_sub(subreddit):
-        """
-        Watch submissions and trigger submission events
+def set_initial_submission(sub):
+    """
+    Set the initial submission ID
+    """
 
-        :param subreddit: subreddit to watch
-        """
+    logger.debug("Set first submission id to " + sub.id)
+    all_data.sub_init_str = sub.id
+    all_data.sub_init_int = base36.loads(sub.id)
 
-        for sub in subreddit._raw.stream.submissions():
-            try:
-                callback_sub(submission(sub))
-            except:
-                import traceback; traceback.print_exc()
+    set_fed_submission(sub)
 
+def set_fed_submission(sub):
+    """
+    Set the last fed submission ID
+    """
 
-    def thread_comm(subreddit):
-        """
-        Watch comments and trigger comments events
+    # Feed it to the bot
+    if bot_sub_hook:
+        bot_sub_hook(submission(sub))
 
-        :param subreddit: subreddit to watch
-        """
+    all_data.sub_fed_str = sub.id
+    all_data.sub_fed_int = base36.loads(sub.id)
 
-        for comm in subreddit._raw.stream.comments():
-            try:
-                callback_comm(comment(comm))
-            except:
-                import traceback; traceback.print_exc()
+def set_seen_submission(sub):
+    """
+    Set the last seen submission ID
+    """
+    all_data.sub_seen_str = sub.id
+    all_data.sub_seen_int = base36.loads(sub.id)
 
-    logger.debug("Watching %s" % subreddit_name)
+def new_all_sub(sub):
+    """
+    Mark that a new submission has been seen
+    """
+    # Set last seen
+    set_seen_submission(sub)
 
-    sub = get_subreddit(subreddit_name)
-    sthread = threading.Thread(
-            name="submissions_%s" % subreddit_name,
-            target = thread_sub,
-            args=(sub,))
+    for sub_num in range(all_data.sub_fed_int + 1, all_data.sub_seen_int + 1):
+        sub = get_submission("https://redd.it/" + base36.dumps(sub_num))
+        #print("Feeding new sub " + str(sub.id))
+        set_fed_submission(sub)
+
+def set_initial_comment(comm):
+    """
+    Set initial comment
+    """
+
+    logger.debug("Set first comment id to " + comm.id)
+    all_data.comm_init_str = comm.id
+    all_data.comm_init_id = base36.loads(comm.id)
+
+    set_fed_comment(comm)
+
+def set_fed_comment(comm):
+    """
+    Set the last fed comment ID
+    """
+
+    # Feed it to the bot
+    if bot_comm_hook:
+        bot_comm_hook(comment(comm))
+
+    all_data.comm_fed_str = comm.id
+    all_data.comm_fed_int = base36.loads(comm.id)
+
+def set_seen_comment(comm):
+    """
+    Set the last fed comment ID
+    """
+    all_data.comm_seen_str = comm.id
+    all_data.comm_seen_int = base36.loads(comm.id)
+
+def new_all_comm(comm):
+    """
+    Mark that a new comment has been seen
+    """
+    # Set last seen ID
+    set_seen_comment(comm)
+
+    comm_list = []
+    comm_gen = None
+    for comm_num in range(all_data.comm_fed_int + 1, all_data.comm_seen_int):
+        comm_list.append("t1_" + base36.dumps(comm_num))
+        comm_gen = backend.get_reddit().info(comm_list)
+
+    if not comm_gen:
+        return
+
+    # get_praw returns a generator
+    for comm in comm_gen:
+        #print("Feeding new comment " + str(comm.id))
+        set_fed_comment(comm)
+
+def watch_all(sub_func, comm_func):
+    global bot_sub_hook
+    global bot_comm_hook
+
+    bot_sub_hook = sub_func
+    bot_comm_hook = comm_func
+
+    logger.debug("Watching all")
+
+    sthread = BotThread(
+            name="submissions_all",
+            target = backend.thread_sub,
+            args=(set_initial_submission, new_all_sub,))
     sthread.setDaemon(True)
     sthread.start()
 
-    cthread = threading.Thread(
-            name="comments_%s" % subreddit_name,
-            target = thread_comm,
-            args=(sub,))
+    cthread = BotThread(
+            name="comments_all",
+            target = backend.thread_comm,
+            args=(set_initial_comment, new_all_comm,))
     cthread.setDaemon(True)
     cthread.start()
-
-    watch_dict[subreddit_name] = (sthread, cthread)
 
 def update_all_wikis(tnow):
     global wiki_update_thread
@@ -302,7 +378,7 @@ def update_all_wikis(tnow):
         for sub in subreddit_cache.values():
             logger.debug("Updating %s" % sub)
             for wiki_name in sub.wikis:
-                sub.wikis[wiki_name] = wiki(sub._raw.wiki[wiki_name])
+                sub.wikis[wiki_name] = wiki(backend.get_wiki(sub._raw, wiki_name))
 
         logger.debug("Done wiki update")
 
@@ -313,29 +389,25 @@ def update_all_wikis(tnow):
         return
 
     last_wiki_update = tnow
-    wiki_update_thread = threading.Thread(
+    wiki_update_thread = BotThread(
             name="wiki updater",
             target=update_wikis)
     wiki_update_thread.setDaemon(True)
     wiki_update_thread.start()
 
 def start_tick(period, call_per):
-    def tick():
-        while True:
-            # Sleep for the given period
-            time.sleep(period)
-
-            tnow = utcnow()
-            try:
-                update_all_wikis(tnow)
-                call_per(tnow)
-            except:
-                import traceback; traceback.print_exc()
+    def tick(tnow):
+        try:
+            update_all_wikis(tnow)
+            call_per(tnow)
+        except:
+            import traceback; traceback.print_exc()
 
     logger.debug("Starting periodic check thread with %f interval" % period)
-    periodic_thread = threading.Thread(
+    periodic_thread = BotThread(
             name="periodic_thread",
-            target=tick)
+            target=backend.tick,
+            args=(period, tick,))
 
     periodic_thread.setDaemon(True)
     periodic_thread.start()
