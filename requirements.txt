@@ -3,3 +3,6 @@ configparser
 oslo_concurrency
 base36
 pytest
+pytest-cov
+sqlalchemy
+watchdog
