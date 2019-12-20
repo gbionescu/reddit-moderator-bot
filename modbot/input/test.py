@@ -77,7 +77,7 @@ class FakeSubreddit():
             self.content = ""
             self.subreddit = subreddit
             self.revision_by = get_user("BigDaddy")
-            self.revision_date_utc = 0
+            self.revision_date = 0
 
         @property
         def content_md(self):
@@ -86,7 +86,7 @@ class FakeSubreddit():
         def set_content(self, content, author):
             self.content = content
             self.revision_by = get_user(author)
-            self.revision_date_utc = int(utils.utcnow())
+            self.revision_date = int(utils.utcnow())
 
     def __init__(self, name):
         self.name = name

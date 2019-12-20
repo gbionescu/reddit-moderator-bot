@@ -124,7 +124,7 @@ class wiki():
         self.subreddit_name = reddit_wiki.subreddit.display_name
         self.name = reddit_wiki.name
         self.author = user(reddit_wiki.revision_by)
-        self.revision_date_utc = int(reddit_wiki.revision_date_utc)
+        self.revision_date = int(reddit_wiki.revision_date)
 
         # Check if the subreddit has a wiki storage
         if self.subreddit_name not in wiki_storages:
@@ -137,7 +137,7 @@ class wiki():
             "name": self.name,
             "content": self.content,
             "author": self.author.name,
-            "revision_date": self.revision_date_utc}
+            "revision_date": self.revision_date}
 
         storage.sync()
 

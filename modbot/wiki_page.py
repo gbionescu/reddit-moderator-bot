@@ -18,7 +18,7 @@ class WatchedWiki():
         def __init__(self, wiki):
             self.author = wiki.author
             self.content = wiki.content
-            self.revision_date = wiki.revision_date_utc
+            self.revision_date = wiki.revision_date
             self.recent_edit = False
 
             # Check if it's a recent edit
