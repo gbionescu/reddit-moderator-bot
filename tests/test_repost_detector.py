@@ -66,8 +66,8 @@ def test_invalid_cfg(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
     # Update flair posts control panel
     sub.edit_wiki("control_panel", enable_flair_posts)
-    sub.edit_wiki("repost_detector", wiki_flair_posts, author="wikieditboy")
+    sub.edit_wiki("repost_detector", wiki_flair_posts, author="wikieditboy_repost")
 
     test.advance_time_30m()
 
-    assert(len(test.get_user("wikieditboy").inbox) == 1)
+    assert(len(test.get_user("wikieditboy_repost").inbox) == 1)

@@ -41,6 +41,17 @@ def get_time():
 utils.get_utcnow = get_time
 ###############################################################################
 
+###############################################################################
+# Override URL fetcher
+###############################################################################
+import modbot.utils_title as utils_title
+class FakeParser():
+    def __init__(self, url):
+        self.title = cache_urls[url]
+
+utils_title.Parser = FakeParser
+###############################################################################
+
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
@@ -49,6 +60,7 @@ cache_reddit = {}
 cache_subreddit = {}
 cache_submissions = {}
 cache_users = {}
+cache_urls = {}
 
 set_initial_submission = None
 set_initial_comment = None
@@ -126,20 +138,20 @@ class FakeSubmission():
 
     crt_id = 0 # static member to keep track of the global submission ID
 
-    def __init__(self, subreddit_name, author_name, title, body=None, link=None):
+    def __init__(self, subreddit_name, author_name, title, body=None, url=None):
         self.id = base36.dumps(FakeSubmission.crt_id)
         self.shortlink = "https://redd.it/" + self.id
         self.created_utc = utils.utcnow()
         self.body = body
-        self.link = link
+        self.url = url
 
         self.selftext = ""
         if body:
             self.selftext = body
 
         self.domain = "self"
-        if self.link:
-            self.domain = self.link.split("//")[1].split("/")[0].replace("www.", "")
+        if self.url:
+            self.domain = self.url.split("//")[1].split("/")[0].replace("www.", "")
 
         self.author = get_user(author_name)
         self.title = title
@@ -214,6 +226,13 @@ class FakePRAW():
         id = url.split("/")[-1]
 
         return cache_submissions[id]
+
+class FakeURL():
+    def __init__(self, url, title):
+        self.url = url
+        self.title = title
+
+        cache_urls[url] = title
 
 def create_bot(test_subreddit):
     """

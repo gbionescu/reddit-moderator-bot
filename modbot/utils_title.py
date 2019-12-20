@@ -3,34 +3,10 @@
 #qpy:console
 import unicodedata
 import string
-
-'''
-Extract the title from a web page using
-the standard lib.
-'''
-
+import urllib
+import collections
 from html.parser import HTMLParser
 from urllib.request import urlopen
-import urllib
-
-def error_callback(*_, **__):
-    pass
-
-def is_string(data):
-    return isinstance(data, str)
-
-def is_bytes(data):
-    return isinstance(data, bytes)
-
-def to_ascii(data):
-    if is_string(data):
-        data = data.encode('utf-8', errors='ignore')
-    elif is_bytes(data):
-        data = data.decode('utf-8', errors='ignore')
-    else:
-        data = str(data).encode('ascii', errors='ignore')
-    return data
-
 
 class Parser(HTMLParser):
     def __init__(self, url):
@@ -61,14 +37,44 @@ class Parser(HTMLParser):
         if tag == 'title':
             self.rec = False
 
+# Keep an association of URL to titles so that we don't make multiple requests
+# Using a simple deque - a dict-queue would be faster
+url_title_cache = collections.deque(maxlen=20)
+
+def error_callback(*_, **__):
+    pass
+
+def is_string(data):
+    return isinstance(data, str)
+
+def is_bytes(data):
+    return isinstance(data, bytes)
+
+def to_ascii(data):
+    if is_string(data):
+        data = data.encode('utf-8', errors='ignore')
+    elif is_bytes(data):
+        data = data.decode('utf-8', errors='ignore')
+    else:
+        data = str(data).encode('ascii', errors='ignore')
+    return data
+
 def get_title(url):
-    return Parser(url).title
+    for stored_url, stored_title in url_title_cache:
+        if url == stored_url:
+            return stored_title
+
+    # Fetch the title
+    title = Parser(url).title
+    url_title_cache.append((url, title))
+
+    return title
 
 def remove_accents(input_str):
     nfkd_form = unicodedata.normalize('NFKD', input_str)
     return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
-def clean_title(title, min_word_len):
+def clean_title(title, min_word_len=1):
     if not title:
         return []
 

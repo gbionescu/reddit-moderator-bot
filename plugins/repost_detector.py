@@ -122,7 +122,7 @@ def new_post(submission, storage, reddit, subreddit):
 
                 logger.debug("[%s] Reporting as dupe for %s / factor %f" %
                     (submission.shortlink, post["shortlink"], overlap_factor))
-                submission.report("Possible repost of %s, with a factor of %f" % (post["shortlink"], overlap_factor))
+                submission.report("Possible repost of %s, with a factor of %.2f%%" % (post["shortlink"], overlap_factor))
                 return
     else:
         logger.debug("[%s] Title is too short" % (submission.shortlink))

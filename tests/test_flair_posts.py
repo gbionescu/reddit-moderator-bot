@@ -141,7 +141,7 @@ def test_auto_flair(create_bot):
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
         title="blabla 1234 blabla",
-        link="https://www.redditbot.com/12345.123")
+        url="https://www.redditbot.com/12345.123")
 
     test.new_all_sub(test_submission4)
 
@@ -239,8 +239,8 @@ def test_invalid_cfg(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
     # Update flair posts control panel
     sub.edit_wiki("control_panel", enable_flair_posts)
-    sub.edit_wiki("flair_posts", wiki_flair_posts, author="wikieditboy")
+    sub.edit_wiki("flair_posts", wiki_flair_posts, author="wikieditboy_flair_posts")
 
     test.advance_time_30m()
 
-    assert(len(test.get_user("wikieditboy").inbox) == 1)
+    assert(len(test.get_user("wikieditboy_flair_posts").inbox) == 1)
