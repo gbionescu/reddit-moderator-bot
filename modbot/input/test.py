@@ -41,6 +41,17 @@ def get_time():
 utils.get_utcnow = get_time
 ###############################################################################
 
+###############################################################################
+# Override URL fetcher
+###############################################################################
+import modbot.utils_title as utils_title
+class FakeParser():
+    def __init__(self, url):
+        self.title = cache_urls[url]
+
+utils_title.Parser = FakeParser
+###############################################################################
+
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
@@ -49,6 +60,7 @@ cache_reddit = {}
 cache_subreddit = {}
 cache_submissions = {}
 cache_users = {}
+cache_urls = {}
 
 set_initial_submission = None
 set_initial_comment = None
@@ -64,13 +76,17 @@ class FakeSubreddit():
             self.name = name
             self.content = ""
             self.subreddit = subreddit
+            self.revision_by = get_user("BigDaddy")
+            self.revision_date_utc = 0
 
         @property
         def content_md(self):
             return self.content
 
-        def set_content(self, content):
+        def set_content(self, content, author):
             self.content = content
+            self.revision_by = get_user(author)
+            self.revision_date_utc = int(utils.utcnow())
 
     def __init__(self, name):
         self.name = name
@@ -89,11 +105,11 @@ class FakeSubreddit():
 
         return self.wikis[name]
 
-    def edit_wiki(self, name, content):
+    def edit_wiki(self, name, content, author="BigDaddy"):
         if name not in self.wikis:
             self.wikis[name] = self.FakeWiki(name, self)
 
-        self.wikis[name].set_content(content)
+        self.wikis[name].set_content(content, author)
 
     def add_submission(self, submission):
         self.submissions.append(submission)
@@ -122,20 +138,20 @@ class FakeSubmission():
 
     crt_id = 0 # static member to keep track of the global submission ID
 
-    def __init__(self, subreddit_name, author_name, title, body=None, link=None):
+    def __init__(self, subreddit_name, author_name, title, body=None, url=None):
         self.id = base36.dumps(FakeSubmission.crt_id)
         self.shortlink = "https://redd.it/" + self.id
         self.created_utc = utils.utcnow()
         self.body = body
-        self.link = link
+        self.url = url
 
         self.selftext = ""
         if body:
             self.selftext = body
 
         self.domain = "self"
-        if self.link:
-            self.domain = self.link.split("//")[1].split("/")[0].replace("www.", "")
+        if self.url:
+            self.domain = self.url.split("//")[1].split("/")[0].replace("www.", "")
 
         self.author = get_user(author_name)
         self.title = title
@@ -151,6 +167,8 @@ class FakeSubmission():
         cache_submissions[self.id] = self
         FakeSubmission.crt_id += 1
 
+        self.reports = []
+
         self.flairs = None
         # Create a flair instance for each submission
         if self.subreddit.sub_flairs:
@@ -165,6 +183,18 @@ class FakeSubmission():
         if self.body:
             return True
         return False
+
+    def delete_by_author(self):
+        self.author = None
+
+    def delete_by_mod(self):
+        self.is_crosspostable = False
+
+    def set_link_flair_text(self, link_flair_text):
+        self.link_flair_text = link_flair_text
+
+    def report(self, reason):
+        self.reports.append(reason)
 
 class FakeUser():
     def __init__(self, name):
@@ -196,6 +226,13 @@ class FakePRAW():
         id = url.split("/")[-1]
 
         return cache_submissions[id]
+
+class FakeURL():
+    def __init__(self, url, title):
+        self.url = url
+        self.title = title
+
+        cache_urls[url] = title
 
 def create_bot(test_subreddit):
     """

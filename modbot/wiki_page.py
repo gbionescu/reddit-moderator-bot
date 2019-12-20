@@ -7,30 +7,46 @@ from modbot.storage import dsdict
 logger = botlog("wiki_page")
 EMPTY_WIKI = ""
 
+RECENT_EDIT_LIMIT = utils.timedata.SEC_IN_MIN * 2
+
+# TODO: merge this class with reddit_wrapper.py/wiki
 class WatchedWiki():
+    class WikiChange():
+        """
+        Represents a changed wiki transaction
+        """
+        def __init__(self, wiki):
+            self.author = wiki.author
+            self.content = wiki.content
+            self.revision_date = wiki.revision_date_utc
+            self.recent_edit = False
+
+            # Check if it's a recent edit
+            if utils.utcnow() - self.revision_date < RECENT_EDIT_LIMIT:
+                self.recent_edit = True
+
     DOC_BEGIN = "    ###### <Documentation> (do not edit below)\n\n"
     DOC_END = "\n\n    ###### <Documentation> (do not edit above)\n"
     def __init__(self, subreddit, plugin):
         self.sub = subreddit
         self.subreddit_name = subreddit.display_name
-        self.plugin = plugin
+        self.wiki_page = plugin.wiki_page
 
         self.content = ""
         try:
-            self.content = self.sub.wiki(self.plugin.wiki_page).get_content()
+            self.content = self.sub.wiki(self.wiki_page).get_content()
         except prawcore.exceptions.NotFound:
             logger.debug("Subreddit %s does not contain wiki %s. Creating it." %
-                    (subreddit.display_name, self.plugin.wiki_page))
-            self.sub.wiki[self.plugin.wiki_page].edit(EMPTY_WIKI)
+                    (subreddit.display_name, self.wiki_page))
+            self.sub.wiki[self.wiki_page].edit(EMPTY_WIKI)
             self.content = EMPTY_WIKI
 
         self.old_content = self.content
         self.last_update = utils.utcnow()
-        self.refresh_interval = self.plugin.refresh_interval
-        self.notifier = self.plugin.wiki_change_notifier
-        self.wiki_page = self.plugin.wiki_page
-        self.description = self.plugin.description
-        self.raw_documentation = self.plugin.documentation
+        self.refresh_interval = plugin.refresh_interval # not used
+        self.notifier = plugin.wiki_change_notifier
+        self.description = plugin.description
+        self.raw_documentation = plugin.documentation
         self.documentation = None
 
         # Provide extra args for upper classes
@@ -74,7 +90,7 @@ class WatchedWiki():
         Update page content and return True if changed, False otherwise
         """
         changed = False
-        self.content = self.sub.wiki(self.plugin.wiki_page).get_content()
+        self.content = self.sub.wiki(self.wiki_page).get_content()
 
         if self.content != self.old_content:
             changed = True
@@ -92,9 +108,12 @@ class WatchedWiki():
             if self.documentation and with_documentation:
                 content = self.documentation + content
 
-            self.sub.wiki(self.plugin.wiki_page).edit(content)
+            self.sub.wiki(self.wiki_page).edit(content)
         else:
-            logger.debug("Can't write to %s, because it's read only" % self.plugin.wiki_page)
+            logger.debug("Can't write to %s, because it's read only" % self.wiki_page)
+
+    def get_change_obj(self):
+        return self.WikiChange(self.sub.wiki(self.wiki_page))
 
 def parse_wiki_content(crt_content, parser="CFG_INI"):
     if parser == "CFG_INI":

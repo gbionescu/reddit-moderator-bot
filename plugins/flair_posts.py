@@ -201,7 +201,9 @@ class Flair():
         return len(self.message_intervals)
 
     def get_autoflair_int(self):
-        return self.autoflair * timedata.SEC_IN_MIN
+        if self.autoflair:
+            return self.autoflair * timedata.SEC_IN_MIN
+        return None
 
     def get_notif_time(self):
         if not self.message_intervals:
@@ -213,13 +215,17 @@ class Flair():
 # Store wiki configuration per subreddit
 wiki_config = {}
 
-def wiki_changed(sub, content):
+def wiki_changed(sub, change):
     logger.debug("Wiki changed for flair_posts, subreddit %s" % sub)
-    cont = parse_wiki_content(content)
+    cont = parse_wiki_content(change.content)
 
     # Section setup needed
     if "Setup" not in cont:
         logger.debug("Wiki does not contain Setup. Exit")
+        # If it's a recent edit, notify the author
+        if change.recent_edit:
+            change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
+                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
         return
 
     # Read the setup section
@@ -346,7 +352,7 @@ def per(subreddit, storage, reddit):
                 continue
 
             # Has the user updated the flair?
-            if post["link_flair_text"] == "":
+            if post["link_flair_text"] in [None, ""]:
                 post["notif_level"] += 1
                 storage.sync()
 
@@ -371,10 +377,6 @@ def per(subreddit, storage, reddit):
                 crt_sub = reddit.get_submission(url=post["shortlink"])
                 crt_sub.author.send_pm("Please flair your post", msg)
                 logger.info("Sent message %d for %s" % (post["notif_level"], post["shortlink"]))
-            else:
-                logger.debug("[%s] Remove because it has a flair" % (post["shortlink"]))
-                to_remove.append(post)
-                continue
 
         if post["has_aflair"] and not post["aflair_done"] and tnow - post["aflair_time"] > 0:
             post["aflair_done"] = True

@@ -32,3 +32,18 @@ def utcnow():
 
 def date():
     return get_utcnow().strftime("%Y-%m-%d / %H:%M:%S")
+
+def calc_overlap(list1, list2):
+    """
+    Calculate how much two lists overlap percentage wise
+    """
+    if len(list1) > 0 and len(list2) > 0:
+        return \
+            (1.0 - len(set(list1).difference(set(list2))) / len(list1)) * 100, \
+            (1.0 - len(set(list2).difference(set(list1))) / len(list2)) * 100
+    return 0, 0
+
+def calc_overlap_avg(list1, list2):
+    v1, v2 = calc_overlap(list1, list2)
+
+    return (v1 + v2) / 2

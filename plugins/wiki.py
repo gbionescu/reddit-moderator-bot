@@ -26,7 +26,7 @@ def refresh_wikis(plugin_manager):
                 wiki.last_update = now
                 # If the content has changed, trigger the update function
                 if wiki.update_content() and wiki.notifier:
-                    wiki.notifier(plugin_manager.dispatchers[sub].subreddit, wiki.content)
+                    wiki.notifier(plugin_manager.dispatchers[sub].subreddit, wiki.get_change_obj())
 
 def init_control_panel(sub_name, plugin_list, plugin_manager):
     # Get subreddit dispatcher
@@ -75,7 +75,7 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
             # Call the wiki notifier with the current content
             if new_wiki and new_wiki.notifier:
                 new_wiki.update_content()
-                new_wiki.notifier(sub_dispatcher.subreddit, new_wiki.content)
+                new_wiki.notifier(sub_dispatcher.subreddit, new_wiki.get_change_obj())
         else:
             content += "# Current status: Disabled"
             sub_dispatcher.disable_wiki(page.wiki_page)
