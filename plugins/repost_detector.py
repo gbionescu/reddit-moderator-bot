@@ -41,8 +41,6 @@ min_overlap_percent = 50
 
 MAX_AGE = timedata.SEC_IN_DAY * 7 # Maximum age to keep posts
 MAX_ACTION_TIME = timedata.SEC_IN_MIN # Maximum time to wait to take an action
-EDITORIALIZE_OVERLAP = 0.9 # Overlap under which title editorialization is reported
-SKIP_EDITORIALIZE_DOMAIN = ["imgur.com", "facebook.com"]
 
 logger = botlog("repost_detector")
 
@@ -51,7 +49,7 @@ wiki_config = {}
 
 class RepostCfg():
     def __init__(self, config):
-        self.min_overlap_percent = int(config["min_overlap_percent"])
+        self.min_overlap_percent = min(max(int(config["min_overlap_percent"]), 0), 100)
         self.minimum_nb_words = int(config["minimum_nb_words"])
         self.minimum_word_length = int(config["minimum_word_length"])
 
