@@ -102,31 +102,31 @@ def new_post(submission, storage, reddit, subreddit):
     # Clean the title
     cleaned_title = clean_title(submission.title, config.minimum_word_length)
 
-    if len(cleaned_title) >= config.minimum_nb_words:
-        # Check against old titles
-        for post in storage["subs"].values():
-            # Calculate two-way overlap factor
-            logger.debug("[%s] Checking\n\t%s\n\t%s" % (submission.shortlink, cleaned_title, post["filtered"]))
-
-            overlap_factor = calc_overlap_avg(cleaned_title, post["filtered"])
-
-            logger.debug("[%s] Calculated repost factor %f" % (submission.shortlink, overlap_factor))
-            if overlap_factor > config.min_overlap_percent:
-                post_sub = reddit.get_submission(url=post["shortlink"])
-                # Did the author remove it?
-                if post_sub.author == None:
-                    continue
-                # Was it removed?
-                elif post_sub.is_crosspostable == False:
-                    continue
-
-                logger.debug("[%s] Reporting as dupe for %s / factor %f" %
-                    (submission.shortlink, post["shortlink"], overlap_factor))
-                submission.report("Possible repost of %s, with a factor of %.2f%%" % (post["shortlink"], overlap_factor))
-                return
-    else:
+    if len(cleaned_title) < config.minimum_nb_words:
         logger.debug("[%s] Title is too short" % (submission.shortlink))
         return
+
+    # Check against old titles
+    for post in storage["subs"].values():
+        # Calculate two-way overlap factor
+        logger.debug("[%s] Checking\n\t%s\n\t%s" % (submission.shortlink, cleaned_title, post["filtered"]))
+
+        overlap_factor = calc_overlap_avg(cleaned_title, post["filtered"])
+
+        logger.debug("[%s] Calculated repost factor %f" % (submission.shortlink, overlap_factor))
+        if overlap_factor > config.min_overlap_percent:
+            post_sub = reddit.get_submission(url=post["shortlink"])
+            # Did the author remove it?
+            if post_sub.author == None:
+                continue
+            # Was it removed?
+            elif post_sub.is_crosspostable == False:
+                continue
+
+            logger.debug("[%s] Reporting as dupe for %s / factor %f" %
+                (submission.shortlink, post["shortlink"], overlap_factor))
+            submission.report("Possible repost of %s, with a factor of %.2f%%" % (post["shortlink"], overlap_factor))
+            return
 
     # Add new element
     new = {}
