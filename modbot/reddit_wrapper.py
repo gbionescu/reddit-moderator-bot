@@ -153,7 +153,7 @@ class wiki_stored(wiki):
         self.content = storobj["content"]
         self.name = storobj["name"]
         self.author = user(get_user(storobj["author"]))
-        self.revision_date_utc = int(storobj["revision_date"])
+        self.revision_date = int(storobj["revision_date"])
 
 class subreddit():
     """
