@@ -65,7 +65,10 @@ def get_title(url):
             return stored_title
 
     # Fetch the title
-    title = Parser(url).title
+    try:
+        title = Parser(url).title
+    except:
+        title = ""
     url_title_cache.append((url, title))
 
     return title
