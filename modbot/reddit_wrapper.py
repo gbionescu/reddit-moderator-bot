@@ -16,11 +16,10 @@ backend = None
 all_data = None
 subreddit_cache = None
 wiki_storages = None
-
 last_wiki_update = None
 wiki_update_thread = None
-WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 
+WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 15
 
 class submission():
@@ -124,6 +123,8 @@ class wiki():
         self.content = reddit_wiki.content_md
         self.subreddit_name = reddit_wiki.subreddit.display_name
         self.name = reddit_wiki.name
+        self.author = user(reddit_wiki.revision_by)
+        self.revision_date_utc = int(reddit_wiki.revision_date_utc)
 
         # Check if the subreddit has a wiki storage
         if self.subreddit_name not in wiki_storages:
@@ -134,7 +135,9 @@ class wiki():
             "store_date": utcnow(),
             "subreddit": self.subreddit_name,
             "name": self.name,
-            "content": self.content}
+            "content": self.content,
+            "author": self.author.name,
+            "revision_date": self.revision_date_utc}
 
         storage.sync()
 
@@ -149,6 +152,8 @@ class wiki_stored(wiki):
         self.subreddit_name = storobj["subreddit"]
         self.content = storobj["content"]
         self.name = storobj["name"]
+        self.author = user(get_user(storobj["author"]))
+        self.revision_date_utc = int(storobj["revision_date"])
 
 class subreddit():
     """
@@ -201,6 +206,7 @@ class user():
     """
     def __init__(self, reddit_user):
         self._raw = reddit_user
+        self.username = reddit_user.name
 
     def __repr__(self):
         return self._raw.name
@@ -213,12 +219,20 @@ class user():
 
         self._raw.message(subject, text)
 
+    @property
+    def name(self):
+        return self.username
+
 def set_input_type(input_type):
     global backend
     global all_data
     global wiki_storages
     global subreddit_cache
     global last_wiki_update
+    global bot_sub_hook
+    global bot_comm_hook
+    global wiki_update_thread
+
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
     # Initialize objects that depend on the backend
@@ -226,6 +240,9 @@ def set_input_type(input_type):
     wiki_storages = {}
     subreddit_cache = {}
     last_wiki_update = utcnow()
+    bot_sub_hook = None
+    bot_comm_hook = None
+    wiki_update_thread = None
 
 def set_credentials(credentials, user_agent):
     backend.set_praw_opts(credentials, user_agent)
@@ -239,6 +256,9 @@ def get_subreddit(name):
         subreddit_cache[name] = subreddit(backend.get_reddit().subreddit(name))
 
     return subreddit_cache[name]
+
+def get_user(name):
+    return backend.get_reddit().redditor(name)
 
 def get_moderated_subs():
     """

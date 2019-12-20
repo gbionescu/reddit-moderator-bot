@@ -7,7 +7,11 @@ enable_flair_posts = """
 flair_posts
 """
 
-def check_flair_warning():
+@pytest.fixture
+def create_bot():
+    test.create_bot(TEST_SUBREDDIT)
+
+def test_flair_warning(create_bot):
     wiki_flair_posts = """
     [Setup]
     message_intervals = 5, 7, 9, 10, 15, 20, 25
@@ -28,7 +32,7 @@ def check_flair_warning():
     # Give some time to the bot to get the new wiki configuration
     test.advance_time_60s()
 
-    # Create a new submissino that we will be testing against
+    # Create a new submissinon that we will be testing against
     test_submission = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1", title="title_test")
     test.new_all_sub(test_submission)
 
@@ -49,7 +53,7 @@ def check_flair_warning():
         msg_no += 1
         user.inbox = user.inbox[1:]
 
-def check_auto_flair():
+def test_auto_flair(create_bot):
     wiki_flair_posts = """
     [Setup]
     autoflair = 1
@@ -159,7 +163,7 @@ def check_auto_flair():
 
     assert(test_submission5.flairs.set_flair_id == "testflair6")
 
-def check_corner_cases():
+def test_corner_cases(create_bot):
     wiki_flair_posts = """
     [Setup]
     message_intervals = 2, 30
@@ -224,9 +228,19 @@ def check_corner_cases():
 
     assert(len(test.get_user("granular").inbox) == 0)
 
-def test_flair_posts():
-    test.create_bot(TEST_SUBREDDIT)
+def test_invalid_cfg(create_bot):
+    wiki_flair_posts = """
+    [Seup]
+    message_intervals = 2, 30
 
-    check_flair_warning()
-    check_auto_flair()
-    check_corner_cases()
+    message = message ${MESSAGE_NO}/${MAX_MESSAGES}/${SUBMISSION_LINK}
+    """
+    test.create_bot(TEST_SUBREDDIT)
+    sub = test.get_subreddit(TEST_SUBREDDIT)
+    # Update flair posts control panel
+    sub.edit_wiki("control_panel", enable_flair_posts)
+    sub.edit_wiki("flair_posts", wiki_flair_posts, author="wikieditboy")
+
+    test.advance_time_30m()
+
+    assert(len(test.get_user("wikieditboy").inbox) == 1)

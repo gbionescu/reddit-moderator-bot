@@ -1,6 +1,8 @@
 #-*-coding:utf8;-*-
 #qpy:3
 #qpy:console
+import unicodedata
+import string
 
 '''
 Extract the title from a web page using
@@ -59,6 +61,28 @@ class Parser(HTMLParser):
         if tag == 'title':
             self.rec = False
 
-
 def get_title(url):
     return Parser(url).title
+
+def remove_accents(input_str):
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+def clean_title(title, min_word_len):
+    if not title:
+        return []
+
+    # Remove punctuation, lower, remove accents and split
+    split = remove_accents(
+            title.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower()
+        ).split()
+
+    # Remove words shorter than min_word_len
+    no_shortw = []
+    for word in split:
+        if len(word) <= min_word_len:
+            continue
+
+        no_shortw.append(word)
+
+    return no_shortw

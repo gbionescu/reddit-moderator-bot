@@ -64,13 +64,17 @@ class FakeSubreddit():
             self.name = name
             self.content = ""
             self.subreddit = subreddit
+            self.revision_by = get_user("BigDaddy")
+            self.revision_date_utc = 0
 
         @property
         def content_md(self):
             return self.content
 
-        def set_content(self, content):
+        def set_content(self, content, author):
             self.content = content
+            self.revision_by = get_user(author)
+            self.revision_date_utc = int(utils.utcnow())
 
     def __init__(self, name):
         self.name = name
@@ -89,11 +93,11 @@ class FakeSubreddit():
 
         return self.wikis[name]
 
-    def edit_wiki(self, name, content):
+    def edit_wiki(self, name, content, author="BigDaddy"):
         if name not in self.wikis:
             self.wikis[name] = self.FakeWiki(name, self)
 
-        self.wikis[name].set_content(content)
+        self.wikis[name].set_content(content, author)
 
     def add_submission(self, submission):
         self.submissions.append(submission)
@@ -151,6 +155,8 @@ class FakeSubmission():
         cache_submissions[self.id] = self
         FakeSubmission.crt_id += 1
 
+        self.reports = []
+
         self.flairs = None
         # Create a flair instance for each submission
         if self.subreddit.sub_flairs:
@@ -174,6 +180,9 @@ class FakeSubmission():
 
     def set_link_flair_text(self, link_flair_text):
         self.link_flair_text = link_flair_text
+
+    def report(self, reason):
+        self.reports.append(reason)
 
 class FakeUser():
     def __init__(self, name):

@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import importlib
 import time
@@ -181,12 +182,13 @@ class plugin_manager():
         plugin_name = plugin_name.replace(".py", "")
 
         try:
-            # Import the file
-            plugin_module = importlib.import_module(plugin_name)
-
+            plugin_module = None
             # If file was previously imported, reload
-            if plugin_module in self.modules:
-                plugin_module = importlib.reload(plugin_module)
+            if plugin_module in self.modules or plugin_name in sys.modules.keys():
+                plugin_module = importlib.reload(importlib.import_module(plugin_name))
+            else:
+                # Import the file
+                plugin_module = importlib.import_module(plugin_name)
 
             # Return the imported file
             return plugin_module

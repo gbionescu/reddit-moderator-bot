@@ -215,13 +215,17 @@ class Flair():
 # Store wiki configuration per subreddit
 wiki_config = {}
 
-def wiki_changed(sub, content):
+def wiki_changed(sub, change):
     logger.debug("Wiki changed for flair_posts, subreddit %s" % sub)
-    cont = parse_wiki_content(content)
+    cont = parse_wiki_content(change.content)
 
     # Section setup needed
     if "Setup" not in cont:
         logger.debug("Wiki does not contain Setup. Exit")
+        # If it's a recent edit, notify the author
+        if change.recent_edit:
+            change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
+                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
         return
 
     # Read the setup section
