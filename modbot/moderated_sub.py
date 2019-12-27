@@ -269,7 +269,7 @@ class DispatchSubreddit(DispatchAll):
         Get the control panel content
         """
         try:
-            self.crt_control_panel = self.subreddit.wiki("control_panel").get_content()
+            self.crt_control_panel = self.subreddit.wiki("control_panel", force_live=True).get_content()
         except:
             import traceback
             traceback.print_exc()

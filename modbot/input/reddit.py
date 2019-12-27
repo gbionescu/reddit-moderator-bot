@@ -43,25 +43,28 @@ def get_reddit(name="default", force_create=False):
 
     return praw_inst[name]
 
-def thread_sub(set_initial_submission, new_all_sub):
+def thread_sub(feeder):
     """
     Watch submissions and trigger submission events
 
     :param subreddit: subreddit to watch
     """
 
+    first_set = False
     while True:
         session = get_reddit("submissions_all")
         logger.debug("Getting base submission")
         # Get one submission and set it as the initial one
-        for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
-            set_initial_submission(sub)
-            break
+        if not first_set:
+            for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
+                feeder.set_initial(sub)
+                break
+            first_set = True
 
         try:
             # Feed all submissions
             for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
-                new_all_sub(sub)
+                feeder.new_all_object(sub)
 
         except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
             print('PRAW exception ' + str(e))
@@ -73,25 +76,28 @@ def thread_sub(set_initial_submission, new_all_sub):
         # If a loop happens, sleep for a bit
         time.sleep(0.1)
 
-def thread_comm(set_initial_comment, new_all_comm):
+def thread_comm(feeder):
     """
     Watch comments and trigger comments events
 
     :param subreddit: subreddit to watch
     """
 
+    first_set = False
     while True:
         session = get_reddit("comments_all")
         # Get one submission and set it as the initial one
         logger.debug("Getting base comment")
-        for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
-            set_initial_comment(comm)
-            break
+        if not first_set:
+            for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
+                feeder.set_initial(comm)
+                break
+            first_set = True
 
         try:
             # Feed all comments
             for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
-                new_all_comm(comm)
+                feeder.new_all_object(comm)
 
         except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
             print('PRAW exception ' + str(e))
