@@ -38,6 +38,7 @@ def test_repost_detector(create_bot):
     test_submission2 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="AAAA BBBB CCCC DDDD EEEE GGGG")
     test.new_all_sub(test_submission2)
+    test.advance_time_10m()
 
     assert(len(test_submission2.reports) == 1)
 

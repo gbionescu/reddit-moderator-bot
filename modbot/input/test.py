@@ -61,11 +61,10 @@ cache_subreddit = {}
 cache_submissions = {}
 cache_users = {}
 cache_urls = {}
+cache_info = {}
 
-set_initial_submission = None
-set_initial_comment = None
-new_all_sub = None
-new_all_comm = None
+sub_feeder = None
+com_feeder = None
 time_trigger = None
 moderated_subs = None
 
@@ -136,7 +135,7 @@ class FakeSubmission():
         def select(self, flair_id):
             self.set_flair_id = flair_id
 
-    crt_id = 0 # static member to keep track of the global submission ID
+    crt_id = 1 # static member to keep track of the global submission ID
 
     def __init__(self, subreddit_name, author_name, title, body=None, url=None):
         self.id = base36.dumps(FakeSubmission.crt_id)
@@ -166,6 +165,7 @@ class FakeSubmission():
         # Add to global cache and increment submission id
         cache_submissions[self.id] = self
         FakeSubmission.crt_id += 1
+        cache_info["t3_%s" % self.id] = self
 
         self.reports = []
 
@@ -205,6 +205,12 @@ class FakeUser():
         self.inbox.append((subject, text))
 
 class FakeModerator():
+    def __init__(self):
+        self.me_inst = FakeUser("BOT")
+
+    def me(self):
+        return self.me_inst
+
     def moderator_subreddits(self):
         sub_lst = []
 
@@ -226,6 +232,13 @@ class FakePRAW():
         id = url.split("/")[-1]
 
         return cache_submissions[id]
+
+    def info(self, info_list):
+        ret_items = []
+        for item in info_list:
+            ret_items.append(cache_info[item])
+
+        return ret_items
 
 class FakeURL():
     def __init__(self, url, title):
@@ -259,7 +272,7 @@ def create_bot(test_subreddit):
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title3")
 
     # Update last seen submission
-    new_all_sub(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title4"))
+    sub_feeder.new_all_object(FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title4"))
 
     # Create more empty submissions
     FakeSubmission(subreddit_name=test_subreddit, author_name="JohnDoe1", title="title5")
@@ -310,22 +323,25 @@ def get_wiki(subreddit, name):
 def edit_wiki(subreddit, wiki_name, content):
     subreddit.edit_wiki(wiki_name, content)
 
-def thread_sub(set_initial_sub, new_sub):
-    global set_initial_submission
-    global new_all_sub
+def thread_sub(feeder):
+    global sub_feeder
+    sub_feeder = feeder
 
-    set_initial_submission = set_initial_sub
-    new_all_sub = new_sub
-
-def thread_comm(set_initial_comm, new_comm):
-    global set_initial_comment
-    global new_all_comm
-
-    set_initial_comment = set_initial_comm
-    new_all_comm = new_comm
+def thread_comm(feeder):
+    global com_feeder
+    com_feeder = feeder
 
 def set_initial_sub(sub):
-    set_initial_submission(sub)
+    sub_feeder.set_initial(sub)
+
+def set_initial_com(com):
+    com_feeder.set_initial(com)
+
+def new_all_sub(sub):
+    sub_feeder.new_all_object(sub)
+
+def new_all_com(com):
+    com_feeder.new_all_object(com)
 
 def tick(period, trigger):
     global time_trigger

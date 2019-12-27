@@ -36,6 +36,7 @@ def test_changed_title(create_bot):
     test_submission2 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="qwerty asdfg zxcvb poiuy lkjhg mnbvc", url="https://google.com/myarticle2")
     test.new_all_sub(test_submission2)
+    test.advance_time_10m()
 
     assert(len(test_submission1.reports) == 1)
     assert(len(test_submission2.reports) == 0)
