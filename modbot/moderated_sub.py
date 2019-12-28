@@ -168,8 +168,9 @@ class DispatchAll():
         # Create the container each time
         self.enabled_wiki_hooks = self.HookContainer(self.call_plugin_func)
         for wiki in self.enabled_wikis:
-            # Add it to the enabled wiki hook list
-            self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
+            if wiki in self.wiki_pages_callbacks:
+                # Add it to the enabled wiki hook list
+                self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
 
     def enable_wiki(self, wiki):
         if wiki not in self.enabled_wikis:
@@ -178,8 +179,9 @@ class DispatchAll():
 
             self.rebuild_wiki_hooks()
 
-            # Call on start hooks for the current wiki
-            self.wiki_pages_callbacks[wiki].run_on_start()
+            if wiki in self.wiki_pages_callbacks:
+                # Call on start hooks for the current wiki
+                self.wiki_pages_callbacks[wiki].run_on_start()
 
     def disable_wiki(self, wiki):
         if wiki in self.enabled_wikis:

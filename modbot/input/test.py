@@ -93,6 +93,7 @@ class FakeSubreddit():
         self.submissions = []
         self.subreddit_type = ["public"]
         self.sub_flairs = None
+        self.modmail = []
 
     @property
     def display_name(self):
@@ -115,6 +116,9 @@ class FakeSubreddit():
 
     def set_flairs(self, flair_list):
         self.sub_flairs = flair_list
+
+    def message(self, subject, text):
+        self.modmail.append((subject, text))
 
 class FakeSubmission():
 

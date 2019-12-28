@@ -250,8 +250,8 @@ class plugin_manager():
         :param submission: submission instance
         """
 
-        if self.given_watched_subs.get(submission.subreddit_name, None):
-            self.dispatchers[DISPATCH_ANY].run_submission(submission)
+        #if self.given_watched_subs.get(submission.subreddit_name, None):
+        self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
         disp = self.dispatchers.get(submission.subreddit_name, None)
         if disp:
@@ -266,8 +266,9 @@ class plugin_manager():
         :param submission: comment instance
         """
 
-        if self.given_watched_subs.get(comment.subreddit_name, None):
-            self.dispatchers[DISPATCH_ANY].run_comment(comment)
+        # TODO clean up watched_subs
+        #if self.given_watched_subs.get(comment.subreddit_name, None):
+        self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
         disp = self.dispatchers.get(comment.subreddit_name, None)
         if disp:

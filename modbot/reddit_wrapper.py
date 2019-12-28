@@ -199,6 +199,11 @@ class subreddit():
 
         return False
 
+    def send_modmail(self, subject, text, skip_signature=False):
+        if not skip_signature:
+            text += "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=programatorulupeste&subject=Bot&message=) ^^to ^^its ^^author."
+        self._raw.message(subject, text)
+
     def wiki(self, name, force_live=False):
         if force_live:
             logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
@@ -310,7 +315,7 @@ class BotFeeder():
 
         if len(self.storchild["workers"]) < self.max_workers:
             new_obj = {}
-            new_obj["start"] = self.storchild["pending"]
+            new_obj["start"] = self.storchild["pending"] + 1
             new_obj["end"] = min(self.storchild["seen"], new_obj["start"] + self.items_per_worker)
             new_obj["finished"] = 0
 
