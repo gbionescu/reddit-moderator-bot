@@ -121,6 +121,18 @@ class comment():
     def id(self):
         return self._raw.id
 
+    @property
+    def permalink(self):
+        return self._raw.permalink
+
+    @property
+    def body(self):
+        return self._raw.body
+
+    @property
+    def author(self):
+        return self._raw.author
+
 class wiki():
     def __init__(self, reddit_wiki):
         try:
@@ -273,6 +285,7 @@ class BotFeeder():
         # Initialize empty members
         self.storchild["pending"] = 0
         self.storchild["seen"] = 0
+        self.storchild["fed"] = 0
         self.storchild["workers"] = []
         self.storage.sync()
 

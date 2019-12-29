@@ -26,22 +26,27 @@ def test_notify(create_bot):
     # Give some time to the bot to get the new wiki configuration
     test.advance_time_60s()
 
-    test_submission1 = test.FakeSubmission(
+    test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
         title="title_test",
         body="blabla qweqw")
-    test.new_all_sub(test_submission1)
     test.advance_time_10m()
 
-    test_submission2 = test.FakeSubmission(
+    submission = test.FakeSubmission(
         subreddit_name="some_other_sub",
         author_name="JohnDoe1",
         title="title_test",
-        body="12345 oqiwjeoqiw aaa")
-    test.new_all_sub(test_submission2)
+        body="12345 oqiwjeoqiw aaa xxxabcdefxxx")
     test.advance_time_10m()
 
     sub = test.get_subreddit(TEST_SUBREDDIT)
-    # Check that 7 messages have been sent
+
+    # Check that modmail has been sent
     assert(len(sub.modmail) == 1)
+
+    submission.add_comment("user1", "12345 1234")
+    test.advance_time_10m()
+
+    # Check that modmail has been sent
+    assert(len(sub.modmail) == 2)

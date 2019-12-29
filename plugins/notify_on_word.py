@@ -80,11 +80,15 @@ def new_post(submission, reddit, subreddit):
         if len(word_list) > 0:
             message_body = "Word list: %s\nLink: %s" % (str(word_list), submission.shortlink)
             get_subreddit(subreddit_name).send_modmail(
-                "A given word has been found in a submission", message_body)
-
+                "Given word/words has/have been found in a submission", message_body)
 
 @hook.comment()
 def new_comment(comment, reddit, subreddit):
     # Skip self posts
-    if submission.is_self:
-        return
+    for subreddit_name, config in wiki_config.items():
+        word_list = check_words(comment.body, config, comment.author)
+
+        if len(word_list) > 0:
+            message_body = "Word list: %s\nLink: %s" % (str(word_list), comment.permalink)
+            get_subreddit(subreddit_name).send_modmail(
+                "Given word/words has/have been found in a comment", message_body)

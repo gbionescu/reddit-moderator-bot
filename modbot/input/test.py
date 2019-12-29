@@ -172,11 +172,15 @@ class FakeSubmission():
         cache_info["t3_%s" % self.id] = self
 
         self.reports = []
+        self.comments = []
 
         self.flairs = None
         # Create a flair instance for each submission
         if self.subreddit.sub_flairs:
             self.flairs = self.FakeFlair(self.subreddit.sub_flairs, self)
+
+        # Announce the bot that there is a new submission
+        new_all_sub(self)
 
     @property
     def flair(self):
@@ -199,6 +203,9 @@ class FakeSubmission():
 
     def report(self, reason):
         self.reports.append(reason)
+
+    def add_comment(self, author, body):
+        self.comments.append(FakeComment(author, body, self))
 
 class FakeUser():
     def __init__(self, name):
@@ -250,6 +257,24 @@ class FakeURL():
         self.title = title
 
         cache_urls[url] = title
+
+class FakeComment():
+    id = 1
+    def __init__(self, author, body, submission):
+        self.author = get_user(author)
+        self.body = body
+        self.id = base36.dumps(FakeComment.id)
+        self.submission = submission
+        self.subreddit = submission.subreddit
+
+        self.permalink = "testbot.com/%s/%s" \
+            % (self.submission.id, self.id)
+
+        cache_info["t1_%s" % self.id] = self
+
+        FakeComment.id += 1
+
+        new_all_com(self)
 
 def create_bot(test_subreddit):
     """
