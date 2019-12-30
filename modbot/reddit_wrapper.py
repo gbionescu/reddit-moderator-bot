@@ -265,6 +265,14 @@ class user():
     def name(self):
         return self.username
 
+class inboxmessage():
+    """
+    Encapsulate an inbox message
+    """
+
+    def __init__(self, msg):
+        self._raw = msg
+
 class BotFeeder():
     """
     Feeds submissions or comments to a given function
@@ -448,16 +456,18 @@ def get_moderated_subs():
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
 
-def watch_all(sub_func, comm_func):
+def watch_all(sub_func, comm_func, inbox_func):
     global sub_feeder
     global com_feeder
+    global inbox_feeder
 
     # Initialize feeder classes
     sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 50)
     com_feeder = BotFeeder(all_data, "t1_", comm_func, comment, 20, 100)
 
-    logger.debug("Watching all")
+    inbox_feeder = inbox_func
 
+    logger.debug("Watching all")
     sthread = BotThread(
             name="submissions_all",
             target = backend.thread_sub,
@@ -500,6 +510,16 @@ def update_all_wikis(tnow):
     wiki_update_thread.setDaemon(True)
     wiki_update_thread.start()
 
+def check_inbox():
+    # For each unread message
+    for message in backend.get_reddit().inbox.unread(limit=None):
+        if inbox_feeder:
+            # Mark message as read
+            message.mark_read()
+
+            # Give it to the bot
+            inbox_feeder(inboxmessage(message))
+
 def start_tick(period, call_per):
     def tick(tnow):
         try:
@@ -512,6 +532,8 @@ def start_tick(period, call_per):
             if com_feeder:
                 com_feeder.feed_new_elements()
             call_per(tnow)
+
+            check_inbox()
         except:
             import traceback; traceback.print_exc()
 

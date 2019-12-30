@@ -230,9 +230,31 @@ class FakeModerator():
         return sub_lst
 
 class FakePRAW():
+    class FakeMessage():
+        def __init__(self, author, body):
+            self.author = get_user(author)
+            self.body = body
+            self.read = False
+
+        def mark_read(self):
+            self.read = True
+
+    class FakeInbox():
+        def __init__(self):
+            self.messages = []
+
+        def unread(self, limit):
+            for msg in self.messages:
+                if not msg.read:
+                    yield msg
+
+        def add_message(self, author, body):
+            self.messages.append(FakePRAW.FakeMessage(author, body))
+
     def __init__(self, name):
         print("Create fake PRAW " + name)
         self.user = FakeModerator()
+        self.inbox = FakePRAW.FakeInbox()
 
     def subreddit(self, name):
         print("Get sub " + name)

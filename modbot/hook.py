@@ -12,11 +12,13 @@ class subreddit_type(enum.Enum):
 
 @enum.unique
 class callback_type(enum.Enum):
-    SUB = 0
-    COM = 1
-    PER = 2
-    ONL = 3
-    ONS = 4
+    SUB = 0 # Submission
+    COM = 1 # Comment
+    PER = 2 # Periodic
+    ONL = 3 # On load
+    ONS = 4 # On start
+    CMD = 5 # message command
+    REP = 6 # report command
 
 class plugin_function():
     def __init__(self, func, ctype, kwargs, path):
@@ -31,6 +33,8 @@ class plugin_function():
         self.args = kwargs
         self.path = path
         self.args = inspect.getfullargspec(func)[0]
+        self.name = func.__name__
+        self.doc = func.__doc__
 
         self.wiki = None
         self.subreddit = None
@@ -110,7 +114,6 @@ def register_wiki_page(
     plugins_with_wikis.append(obj)
 
     return obj
-
 
 def add_plugin_function(obj):
     """
@@ -192,6 +195,21 @@ def on_start(*args, **kwargs):
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
         add_plugin_function(plugin_function(args[0], callback_type.ONS, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def command(*args, **kwargs):
+    """
+    Message command hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.CMD, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.CMD, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)

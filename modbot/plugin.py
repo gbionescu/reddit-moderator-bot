@@ -48,9 +48,7 @@ class plugin_manager():
         self.config = bot_config
         self.with_reload = with_reload
         self.plugin_args = {}
-
-        # Functions loaded by plugins
-        self.plugin_functions = []
+        self.inbox_cmds = {}
 
         self.master_sub = get_subreddit(master_subreddit)
 
@@ -105,7 +103,7 @@ class plugin_manager():
         print("[%d] Startup done!" % utils.utcnow())
 
         # Start watching subreddits
-        watch_all(self.feed_sub, self.feed_comms)
+        watch_all(self.feed_sub, self.feed_comms, self.feed_inbox)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -119,14 +117,7 @@ class plugin_manager():
     def schedule_call(self, func, when, args=[], kwargs={}):
         self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
 
-    def add_plugin_function(self, func):
-        """
-        Add a function that was loaded from a plugin file
-
-        :param func: function to add
-        """
-        self.plugin_functions.append(func)
-
+    def add_reddit_function(self, func):
         # Check if we should add it to the generic dispatcher or a specific one
         if func.subreddit == None and func.wiki == None:
             self.dispatchers[DISPATCH_ANY].add_callback([func])
@@ -155,6 +146,22 @@ class plugin_manager():
 
                 if sub not in self.watched_subs:
                     self.watched_subs[sub] = True
+
+    def add_inbox_cmd(self, func):
+        pass
+
+    def add_plugin_function(self, func):
+        """
+        Add a function that was loaded from a plugin file
+
+        :param func: function to add
+        """
+
+        # Bot commands should go through another path
+        if func.ctype == callback_type.CMD:
+            self.add_inbox_cmd(func)
+        else:
+            self.add_reddit_function(func)
 
     def load_plugin(self, fname):
         """
@@ -273,3 +280,10 @@ class plugin_manager():
         disp = self.dispatchers.get(comment.subreddit_name, None)
         if disp:
             disp.run_comment(comment)
+
+    def feed_inbox(self, message):
+        """
+        Feeds an inbox message
+        """
+
+        pass
