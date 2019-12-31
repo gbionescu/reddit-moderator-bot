@@ -46,7 +46,6 @@ class plugin_manager():
         self.per_last_exec = {}
         self.bot = bot_inst
         self.config = bot_config
-        self.with_reload = with_reload
         self.plugin_args = {}
         self.inbox_cmds = {}
 
@@ -88,11 +87,6 @@ class plugin_manager():
         # Load plugins
         for path in path_list:
             self.load_plugins(path)
-
-        # Only use reloading in debug
-        if with_reload == "Yes":
-            self.reloader = PluginReloader(self)
-            self.reloader.start(path_list)
 
         print("[%d] Running on start plugins" % utils.utcnow())
         self.dispatchers[DISPATCH_ANY].run_on_start(False)
