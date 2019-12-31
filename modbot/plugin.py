@@ -13,7 +13,6 @@ from modbot.commands import add_command, execute_command
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
 from modbot.hook import callback_type
-from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
 from modbot.moderated_sub import DispatchAll, DispatchSubreddit
