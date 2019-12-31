@@ -167,13 +167,11 @@ class plugin_manager():
 
     def load_plugin(self, fname):
         """
-        Wrapper for loading a plugin. First unloads and the loads the given file.
+        Wrapper for loading a plugin.
 
         :param fname: file name to load
         """
 
-        # Try unloading the file first
-        self.unload_plugin(fname)
         self._load_plugin(fname)
 
     def _load_plugin(self, fname):
@@ -206,21 +204,6 @@ class plugin_manager():
             logger.debug("Error loading %s:\n\t%s" %(fname, e))
             traceback.print_exc()
             return
-
-    def unload_plugin(self, fname):
-        """
-        Unload a plugin.
-
-        :param fname: unloads a plugin file
-        """
-
-        def rem_plugin(plist, path):
-            for elem in plist:
-                if elem.path == path:
-                    logger.debug("Removing %s" % str(elem))
-                    plist.remove(elem)
-
-        logger.debug("Unloading %s" % fname)
 
     def load_plugins(self, path):
         """
