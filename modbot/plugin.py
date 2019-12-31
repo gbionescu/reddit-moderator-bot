@@ -8,6 +8,7 @@ import logging
 from oslo_concurrency.watchdog import watch
 from database.db import db_data
 from modbot import hook
+from modbot.commands import add_command, execute_command
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
@@ -16,7 +17,7 @@ from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
 from modbot.moderated_sub import DispatchAll, DispatchSubreddit
-from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick, get_submission, watch_all
+from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick, get_submission, watch_all, get_user
 
 logger = botlog("plugin")
 
@@ -72,6 +73,7 @@ class plugin_manager():
         self.plugin_args["config"] = self.config
         self.plugin_args["db"] = self.db
         self.plugin_args["schedule_call"] = self.schedule_call
+        self.plugin_args["bot_owner"] = get_user(self.config.get("owner", "owner"))
 
         # Set start time
         self.start_time = utils.utcnow()
@@ -148,7 +150,7 @@ class plugin_manager():
                     self.watched_subs[sub] = True
 
     def add_inbox_cmd(self, func):
-        pass
+        add_command(func)
 
     def add_plugin_function(self, func):
         """
@@ -286,4 +288,4 @@ class plugin_manager():
         Feeds an inbox message
         """
 
-        pass
+        execute_command(message, self.plugin_args)

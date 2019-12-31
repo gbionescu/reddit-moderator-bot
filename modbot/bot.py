@@ -1,6 +1,6 @@
 import configparser
 from modbot.plugin import plugin_manager
-from modbot.reddit_wrapper import set_credentials, set_input_type
+from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
 
 class bot():
     def __init__(self, bot_config_path, backend="reddit"):
@@ -27,6 +27,12 @@ class bot():
         db_credentials = None
         if "postgresql" in self.config.sections():
             db_credentials = self.config["postgresql"]
+
+        # Set bot signature when sending messages
+        owner = self.config.get("owner", "owner")
+
+        set_signature(
+            "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=%s&subject=Bot&message=) ^^to ^^its ^^author." % owner)
 
         self.pmgr = plugin_manager(
             self,

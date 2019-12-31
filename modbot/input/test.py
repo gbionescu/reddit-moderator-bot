@@ -67,6 +67,7 @@ sub_feeder = None
 com_feeder = None
 time_trigger = None
 moderated_subs = None
+moderator_for_sub = {}
 
 class FakeSubreddit():
 
@@ -119,6 +120,10 @@ class FakeSubreddit():
 
     def message(self, subject, text):
         self.modmail.append((subject, text))
+
+    def moderator(self):
+        for mod in moderator_for_sub[self.name]:
+            yield FakeUser(get_user(mod))
 
 class FakeSubmission():
 
@@ -273,6 +278,9 @@ class FakePRAW():
 
         return ret_items
 
+    def redditor(self, name):
+        return get_user(name)
+
 class FakeURL():
     def __init__(self, url, title):
         self.url = url
@@ -308,6 +316,8 @@ def create_bot(test_subreddit):
 
     # Set subreddit where the bot is a moderator
     set_moderated_subs([test_subreddit])
+
+    set_moderator_for_sub(test_subreddit, ["mod1", "mod2"])
 
     # Create the bot
     bot(bot_config_path="tests/test-bot.ini", backend="test")
@@ -428,4 +438,12 @@ def advance_time_1h():
 
 def set_moderated_subs(lst):
     global moderated_subs
+    global moderator_for_sub
+
     moderated_subs = lst
+
+    for sub in lst:
+        moderator_for_sub[sub] = []
+
+def set_moderator_for_sub(sub, lst):
+    moderator_for_sub[sub] = lst

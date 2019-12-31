@@ -18,6 +18,7 @@ last_wiki_update = None
 wiki_update_thread = None
 sub_feeder = None
 com_feeder = None
+bot_signature = None
 
 WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 15
@@ -212,8 +213,8 @@ class subreddit():
         return False
 
     def send_modmail(self, subject, text, skip_signature=False):
-        if not skip_signature:
-            text += "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=programatorulupeste&subject=Bot&message=) ^^to ^^its ^^author."
+        if not skip_signature and bot_signature:
+            text += bot_signature
         self._raw.message(subject, text)
 
     def wiki(self, name, force_live=False):
@@ -256,8 +257,8 @@ class user():
             return
         logger.debug("[%s] Send PM: %s / %s" % (self, subject, text))
 
-        if not skip_signature:
-            text += "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=programatorulupeste&subject=Bot&message=) ^^to ^^its ^^author."
+        if not skip_signature and bot_signature:
+            text += bot_signature
 
         self._raw.message(subject, text)
 
@@ -272,6 +273,8 @@ class inboxmessage():
 
     def __init__(self, msg):
         self._raw = msg
+        self.body = msg.body
+        self.author = user(msg.author)
 
 class BotFeeder():
     """
@@ -441,7 +444,7 @@ def get_subreddit(name):
     return subreddit_cache[name]
 
 def get_user(name):
-    return backend.get_reddit().redditor(name)
+    return user(backend.get_reddit().redditor(name))
 
 def get_moderated_subs():
     """
@@ -452,6 +455,18 @@ def get_moderated_subs():
             continue
 
         yield i.display_name
+
+def get_moderator_users():
+    """
+    Returns list of moderators where the bot is also a mod
+    """
+    mod_list = []
+
+    for sub in get_moderated_subs():
+        for mod in backend.get_reddit().subreddit(sub).moderator():
+            mod_list.append(str(mod))
+
+    return mod_list
 
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
@@ -545,3 +560,7 @@ def start_tick(period, call_per):
 
     periodic_thread.setDaemon(True)
     periodic_thread.start()
+
+def set_signature(signature):
+    global bot_signature
+    bot_signature = signature

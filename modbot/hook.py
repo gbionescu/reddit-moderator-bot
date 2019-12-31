@@ -5,6 +5,7 @@ import inspect
 callbacks = []
 plugins_with_wikis = []
 logger = botlog('hook')
+hook_rights = {} # Map of non standard hook rights
 
 @enum.unique
 class subreddit_type(enum.Enum):
@@ -19,6 +20,12 @@ class callback_type(enum.Enum):
     ONS = 4 # On start
     CMD = 5 # message command
     REP = 6 # report command
+
+@enum.unique
+class permission(enum.IntEnum):
+    ANY = 0
+    MOD = 10
+    OWNER = 1000
 
 class plugin_function():
     def __init__(self, func, ctype, kwargs, path):
@@ -41,11 +48,17 @@ class plugin_function():
         self.period = None
         self.first = None
 
+        # Mark whether it's a raw command hook
+        self.raw = False
+
+        # Get the permission level
+        self.permission = permission.ANY
+
         # Create attribute to track last time the hook was executed
         self.last_exec = 0
 
+        # Parse hook parameters
         if kwargs:
-            # Check plugin_function type and parse parameters
             if 'subreddit' in kwargs:
                 self.subreddit = kwargs['subreddit']
 
@@ -58,6 +71,13 @@ class plugin_function():
                     self.period = kwargs['period']
                 if 'first' in kwargs:
                     self.first = kwargs['first']
+
+            if "raw" in kwargs:
+                self.raw = kwargs["raw"]
+
+            if "permission" in kwargs and kwargs["permission"] in permission:
+                self.permission = kwargs["permission"]
+                hook_rights[self.name] = self.permission
 
     def set_last_exec(self, mark):
         self.last_exec = mark
@@ -85,6 +105,15 @@ class PluginWiki():
         self.default_enabled = default_enabled
 
         logger.debug("Register wiki page " + wiki_page)
+
+def has_rights_on(level, command_name):
+    if command_name not in hook_rights:
+        return True
+
+    if int(level) < int(hook_rights[command_name]):
+        return False
+
+    return True
 
 def register_wiki_page(
         wiki_page,
