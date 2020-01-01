@@ -69,7 +69,7 @@ def check_words(text, config, author):
     return found_words
 
 @hook.submission()
-def new_post(submission, reddit, subreddit):
+def new_post(submission, reddit):
     # Skip link posts
     if not submission.is_self:
         return
@@ -83,7 +83,7 @@ def new_post(submission, reddit, subreddit):
                 "Given word/words has/have been found in a submission", message_body)
 
 @hook.comment()
-def new_comment(comment, reddit, subreddit):
+def new_comment(comment, reddit):
     # Skip self posts
     for subreddit_name, config in wiki_config.items():
         word_list = check_words(comment.body, config, comment.author)

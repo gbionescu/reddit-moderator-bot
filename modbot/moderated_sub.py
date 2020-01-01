@@ -200,7 +200,7 @@ class DispatchAll():
     def run_submission(self, submission):
         extra = {
             "submission": submission,
-            "subreddit": submission.subreddit}
+            "subreddit_name": submission.subreddit_name}
 
         self.generic_hooks.run_submission(submission, extra)
         self.enabled_wiki_hooks.run_submission(submission, extra)
@@ -208,7 +208,7 @@ class DispatchAll():
     def run_comment(self, comment):
         extra = {
             "comment": comment,
-            "subreddit": comment.subreddit}
+            "subreddit_name": comment.subreddit_name}
 
         self.generic_hooks.run_comment(comment, extra)
         self.enabled_wiki_hooks.run_comment(comment, extra)
