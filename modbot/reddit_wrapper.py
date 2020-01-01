@@ -19,8 +19,11 @@ wiki_update_thread = None
 sub_feeder = None
 com_feeder = None
 bot_signature = None
+inbox_thread = None
+last_inbox_update = None
 
 WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
+INBOX_UPDATE_INTERVAL = 10
 COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 15
 
 class submission():
@@ -349,13 +352,10 @@ class BotFeeder():
             #print("Pending %d, Fed %d\n" % (self.storchild["pending"], self.storchild["fed"]))
             self.storage.sync()
 
-            ketchup_thread = BotThread(
+            BotThread(
                 name="ketchup_thread",
                 target=self.catch_up,
                 args=(new_obj,))
-
-            ketchup_thread.setDaemon(True)
-            ketchup_thread.start()
 
     def clean_up_finished(self):
         """
@@ -420,6 +420,7 @@ def set_input_type(input_type):
     global subreddit_cache
     global last_wiki_update
     global wiki_update_thread
+    global last_inbox_update
 
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
@@ -428,6 +429,7 @@ def set_input_type(input_type):
     wiki_storages = {}
     subreddit_cache = {}
     last_wiki_update = utcnow()
+    last_inbox_update = utcnow()
     wiki_update_thread = None
 
 def set_credentials(credentials, user_agent):
@@ -483,19 +485,15 @@ def watch_all(sub_func, comm_func, inbox_func):
     inbox_feeder = inbox_func
 
     logger.debug("Watching all")
-    sthread = BotThread(
+    BotThread(
             name="submissions_all",
             target = backend.thread_sub,
             args=(sub_feeder,))
-    sthread.setDaemon(True)
-    sthread.start()
 
-    cthread = BotThread(
+    BotThread(
             name="comments_all",
             target = backend.thread_comm,
             args=(com_feeder,))
-    cthread.setDaemon(True)
-    cthread.start()
 
 def update_all_wikis(tnow):
     global wiki_update_thread
@@ -519,26 +517,42 @@ def update_all_wikis(tnow):
         return
 
     last_wiki_update = tnow
-    wiki_update_thread = BotThread(
+    BotThread(
             name="wiki updater",
             target=update_wikis)
-    wiki_update_thread.setDaemon(True)
-    wiki_update_thread.start()
 
-def check_inbox():
-    # For each unread message
-    for message in backend.get_reddit().inbox.unread(limit=None):
-        if inbox_feeder:
-            # Mark message as read
-            message.mark_read()
+def check_inbox(tnow):
+    """
+    Check the inbox for updates
+    """
+    def _check_inbox():
+        # For each unread message
+        for message in backend.get_reddit().inbox.unread(limit=None):
+            if inbox_feeder:
+                # Mark message as read
+                message.mark_read()
 
-            # Give it to the bot
-            inbox_feeder(inboxmessage(message))
+                # Give it to the bot
+                inbox_feeder(inboxmessage(message))
+
+    global inbox_thread
+    global last_inbox_update
+    if inbox_thread and inbox_thread.isAlive():
+        return
+
+    if tnow - last_inbox_update < INBOX_UPDATE_INTERVAL:
+        return
+
+    last_inbox_update = tnow
+    inbox_thread = BotThread(
+        _check_inbox,
+        "inbox_thread")
 
 def start_tick(period, call_per):
     def tick(tnow):
         try:
             update_all_wikis(tnow)
+            check_inbox(tnow)
 
             # Check if we can feed new elements
             if sub_feeder:
@@ -546,20 +560,17 @@ def start_tick(period, call_per):
 
             if com_feeder:
                 com_feeder.feed_new_elements()
-            call_per(tnow)
 
-            check_inbox()
+            # Call periodic callback
+            call_per(tnow)
         except:
             import traceback; traceback.print_exc()
 
     logger.debug("Starting periodic check thread with %f interval" % period)
-    periodic_thread = BotThread(
+    BotThread(
             name="periodic_thread",
             target=backend.tick,
             args=(period, tick,))
-
-    periodic_thread.setDaemon(True)
-    periodic_thread.start()
 
 def set_signature(signature):
     global bot_signature

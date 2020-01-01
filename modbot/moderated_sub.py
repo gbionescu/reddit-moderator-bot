@@ -133,14 +133,10 @@ class DispatchAll():
             except Exception:
                 logging.exception("Exception when running " + str(element.func))
         if with_thread:
-            #self.logger.debug("triggering " + str(el.func))
-            pthread = BotThread(
+            BotThread(
                 name="periodic_" + str(el.func),
-                target = trigger_func,
+                target=trigger_func,
                 args=(el, {**self.plugin_args, **extra_args},))
-
-            pthread.setDaemon(True)
-            pthread.start()
         else:
             trigger_func(el, {**self.plugin_args, **extra_args})
 

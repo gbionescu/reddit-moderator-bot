@@ -20,7 +20,7 @@ from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick,
 
 logger = botlog("plugin")
 
-DISPATCH_ANY = 0
+DISPATCH_ANY = 0 # Generic key for dispatching items to all non-bound hooks
 
 class plugin_manager():
     # Dictionary of items that can be passed to plugins
@@ -68,7 +68,6 @@ class plugin_manager():
         self.plugin_args["reddit"] = self
         self.plugin_args["config"] = self.config
         self.plugin_args["db"] = self.db
-        self.plugin_args["schedule_call"] = self.schedule_call
         self.plugin_args["bot_owner"] = get_user(self.config.get("owner", "owner"))
 
         # Set start time
@@ -106,9 +105,6 @@ class plugin_manager():
 
     def get_submission(self, url):
         return get_submission(url)
-
-    def schedule_call(self, func, when, args=[], kwargs={}):
-        self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
 
     def add_reddit_function(self, func):
         # Check if we should add it to the generic dispatcher or a specific one
@@ -197,7 +193,7 @@ class plugin_manager():
         logger.debug("Loading plugins from %s" % path)
         plugins = glob.iglob(os.path.join(path, '*.py'))
         for f in plugins:
-            result = self._load_plugin(f)
+            result = self.load_plugin(f)
             self.modules.append(result)
 
     def periodic_func(self, tnow):

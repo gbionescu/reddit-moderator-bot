@@ -10,6 +10,8 @@ class TestThread():
         self.target = target
         self.args = args
 
+        self.start()
+
     def setDaemon(self, state):
         pass
 

@@ -1,6 +1,7 @@
 from modbot.log import botlog
 from modbot.reddit_wrapper import get_moderator_users
 from modbot import hook
+from modbot.utils import BotThread
 
 cmd_list = {}
 cmd_list_raw = {}
@@ -49,7 +50,7 @@ def set_prefix(prefix):
     logger.debug("Set prefix to " + prefix)
     cmd_prefix = prefix
 
-def call_target(target, message, plugin_args):
+def _call_target(target, message, plugin_args):
     call_args = {}
 
     avail_args = dict(plugin_args)
@@ -61,7 +62,19 @@ def call_target(target, message, plugin_args):
             raise ValueError("Parameter %s does not exist when calling %s" % (req, target.func))
         call_args[req] = avail_args[req]
 
-    target.func(**call_args)
+    try:
+        target.func(**call_args)
+    except:
+        import traceback
+        traceback.print_exc()
+
+def call_target(target, message, plugin_args):
+    """
+    Launch a thread for each plugin
+    """
+    BotThread(_call_target,
+        "inbox_plugin",
+        (target, message, plugin_args,))
 
 def execute_command(message, plugin_args):
     # Get the message body

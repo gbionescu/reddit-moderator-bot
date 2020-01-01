@@ -29,8 +29,6 @@ def test_stor():
                     target=do_test,
                     args=(test_dict, cycles))
 
-            test_th.setDaemon(True)
-            test_th.start()
             to_wait.append(test_th)
 
     launch_threads("test", 50, 10)

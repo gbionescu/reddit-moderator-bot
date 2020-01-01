@@ -8,6 +8,9 @@ class BotThread():
             name=name,
             args=args)
 
+        self.setDaemon(True)
+        self.start()
+
     def setDaemon(self, state):
         self.obj.setDaemon(state)
 
