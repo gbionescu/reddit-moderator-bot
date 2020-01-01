@@ -19,10 +19,6 @@ class bot():
 
         # Set PRAW options
         set_credentials(self.config.get("reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
-
-        # Mark if running in test mode
-        self.in_production = self.config.get("mode", "production", fallback=False)
-
         # DB credentials are optional - check if present
         db_credentials = None
         if "postgresql" in self.config.sections():
@@ -37,8 +33,6 @@ class bot():
         self.pmgr = plugin_manager(
             self,
             path_list=self.config.get("config", "plugin_folders").split(","),
-            with_reload=self.config.get(section="debug", option="reload", fallback=False),
             bot_config=self.config,
             master_subreddit=self.config.get(section="config", option="master_subreddit"),
-            db_params=db_credentials
-        )
+            db_params=db_credentials)

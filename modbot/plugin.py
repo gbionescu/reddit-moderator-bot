@@ -28,7 +28,6 @@ class plugin_manager():
         bot_inst,
         master_subreddit,
         path_list=None,
-        with_reload=False,
         bot_config={},
         db_params={}):
         """
@@ -36,7 +35,6 @@ class plugin_manager():
         :param bot_inst: bot instance
         :param master_subreddit: subreddit where core bot configuration is stored
         :param path_list: list of folders relative to the location from where to load plugins
-        :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
         :param db_params: how to log in to the psql server
         """
@@ -159,15 +157,6 @@ class plugin_manager():
             self.add_reddit_function(func)
 
     def load_plugin(self, fname):
-        """
-        Wrapper for loading a plugin.
-
-        :param fname: file name to load
-        """
-
-        self._load_plugin(fname)
-
-    def _load_plugin(self, fname):
         """
         Load a plugin.
 
