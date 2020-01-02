@@ -3,8 +3,9 @@ from modbot.reddit_wrapper import get_moderator_users
 from modbot import hook
 from modbot.utils import BotThread
 
-cmd_list = {}
-cmd_list_raw = {}
+inbox_cmd_list = {}
+report_cmd_list = {}
+raw_cmd_list = {}
 cmd_prefix = "/"
 
 logger = botlog("commands")
@@ -19,15 +20,15 @@ class command():
         self.doc = documentation
         self.requested_args = requested_args
 
-def add_command(plugin_func):
+def add_inbox_command(plugin_func):
     """
     Add an inbox command to the framework
     """
-    if plugin_func.name in cmd_list:
+    if plugin_func.name in inbox_cmd_list:
         logger.error("Command %s already registered, ignoring" % plugin_func.name)
         return
 
-    logger.debug("Adding command %s" % plugin_func.name)
+    logger.debug("Adding inbox command %s" % plugin_func.name)
 
     new_obj = command(
         plugin_func.func,
@@ -37,9 +38,31 @@ def add_command(plugin_func):
 
     # Check if it should be added to the raw list or not
     if not plugin_func.raw:
-        cmd_list[new_obj.name] = new_obj
+        inbox_cmd_list[new_obj.name] = new_obj
     else:
-        cmd_list_raw[new_obj.name] = new_obj
+        raw_cmd_list[new_obj.name] = new_obj
+
+def add_report_command(plugin_func):
+    """
+    Add an report command to the framework
+    """
+    if plugin_func.name in report_cmd_list:
+        logger.error("Command %s already registered, ignoring" % plugin_func.name)
+        return
+
+    logger.debug("Adding inbox command %s" % plugin_func.name)
+
+    new_obj = command(
+        plugin_func.func,
+        plugin_func.name,
+        plugin_func.doc,
+        plugin_func.args)
+
+    # Check if it should be added to the raw list or not
+    if not plugin_func.raw:
+        report_cmd_list[new_obj.name] = new_obj
+    else:
+        raw_cmd_list[new_obj.name] = new_obj
 
 def set_prefix(prefix):
     """
@@ -50,11 +73,8 @@ def set_prefix(prefix):
     logger.debug("Set prefix to " + prefix)
     cmd_prefix = prefix
 
-def _call_target(target, message, plugin_args):
+def _call_target(target, message, avail_args):
     call_args = {}
-
-    avail_args = dict(plugin_args)
-    avail_args["message"] = message
 
     # Build function parameters
     for req in target.requested_args:
@@ -76,9 +96,9 @@ def call_target(target, message, plugin_args):
         "inbox_plugin",
         (target, message, plugin_args,))
 
-def execute_command(message, plugin_args):
-    # Get the message body
-    text = message.body
+def execute_list(item, plugin_args, cmd_list):
+    # Get the body
+    text = item.body
 
     # Check if it's correct
     if len(text) == 0:
@@ -93,17 +113,31 @@ def execute_command(message, plugin_args):
         text = text[1:]
 
     # Run raw commands first
-    for raw in cmd_list_raw.values():
-        call_target(raw, message, plugin_args)
+    for raw in raw_cmd_list.values():
+        call_target(raw, item, plugin_args)
 
     # Run target command
     if not is_raw and text in cmd_list:
         # Check if the user can run this command
-        right = get_rights_for_user(message.author, plugin_args["bot_owner"])
+        right = get_rights_for_user(item.author, plugin_args["bot_owner"])
         if hook.has_rights_on(right, text):
-            call_target(cmd_list[text], message, plugin_args)
+            call_target(cmd_list[text], item, plugin_args)
         else:
-            logger.error("User %s tried running unprivileged command %s" % (message.author, text))
+            logger.error("User %s tried running unprivileged command %s" % (item.author, text))
+
+def execute_report_command(report, plugin_args):
+    args = dict(plugin_args)
+    args["is_report"] = True
+    args["report"] = report
+    args["event"] = report
+    execute_list(report, args, report_cmd_list)
+
+def execute_inbox_command(message, plugin_args):
+    args = dict(plugin_args)
+    args["is_report"] = False
+    args["message"] = message
+    args["event"] = message
+    execute_list(message, args, inbox_cmd_list)
 
 def get_rights_for_user(user, bot_owner):
     rights = hook.permission.ANY

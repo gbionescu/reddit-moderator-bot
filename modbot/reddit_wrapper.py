@@ -21,6 +21,7 @@ com_feeder = None
 bot_signature = None
 inbox_thread = None
 last_inbox_update = None
+report_cmds = None
 
 WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
 INBOX_UPDATE_INTERVAL = 10
@@ -279,6 +280,25 @@ class inboxmessage():
         self.body = msg.body
         self.author = user(msg.author)
 
+class report():
+    """
+    Encapsulate a report
+    """
+
+    def __init__(self, item, author, body):
+        self._raw = item
+        self.author = author
+        self.body = body
+        self.permalink = item.permalink
+
+    @property
+    def author_name(self):
+        return self._raw.author.name
+
+    @property
+    def subreddit_name(self):
+        return self._raw.subreddit.display_name
+
 class BotFeeder():
     """
     Feeds submissions or comments to a given function
@@ -421,6 +441,7 @@ def set_input_type(input_type):
     global last_wiki_update
     global wiki_update_thread
     global last_inbox_update
+    global report_cmds
 
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
@@ -431,6 +452,7 @@ def set_input_type(input_type):
     last_wiki_update = utcnow()
     last_inbox_update = utcnow()
     wiki_update_thread = None
+    report_cmds = dsdict("mod", "cmds")
 
 def set_credentials(credentials, user_agent):
     backend.set_praw_opts(credentials, user_agent)
@@ -468,21 +490,69 @@ def get_moderator_users():
         for mod in backend.get_reddit().subreddit(sub).moderator():
             mod_list.append(str(mod))
 
-    return mod_list
+    return list(set(mod_list))
 
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
 
-def watch_all(sub_func, comm_func, inbox_func):
+def new_report(item, author, body):
+    """
+    Check if an item can be added in the report feeder
+    """
+    def add_item():
+        if item.id not in report_cmds:
+            report_cmds[item.id] = {}
+
+        if "/created_utc" not in report_cmds[item.id]:
+            report_cmds[item.id]["/created_utc"] = item.created_utc
+
+        if author not in report_cmds[item.id]:
+            report_cmds[item.id][author] = [body]
+        else:
+            report_cmds[item.id][author].append(body)
+        report_cmds.sync()
+
+    # If the item is older than a week, ignore it
+    if utcnow() - item.created_utc > timedata.SEC_IN_WEEK:
+        return
+
+    # Clean up items older than a week
+    for key, val in report_cmds.items():
+        if utcnow() - val["/created_utc"] > timedata.SEC_IN_WEEK:
+            del report_cmds[key]
+            report_cmds.sync()
+
+    new_item = False
+    # If the item wasn't there before, add it
+    if item.id not in report_cmds:
+        new_item = True
+        add_item()
+
+    # If the reporter was not there before, add it
+    if not new_item and author not in report_cmds[item.id]:
+        new_item = True
+        add_item()
+
+    # If the report reason was not there before, add it
+    if not new_item and body not in report_cmds[item.id][author]:
+        new_item = True
+        add_item()
+
+    if new_item:
+        report_feeder(report(item, get_user(author), body))
+
+def watch_all(sub_func, comm_func, inbox_func, report_func):
     global sub_feeder
     global com_feeder
     global inbox_feeder
+    global report_feeder
 
     # Initialize feeder classes
     sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 50)
     com_feeder = BotFeeder(all_data, "t1_", comm_func, comment, 20, 100)
 
     inbox_feeder = inbox_func
+    report_feeder = report_func
 
     logger.debug("Watching all")
     BotThread(
@@ -494,6 +564,11 @@ def watch_all(sub_func, comm_func, inbox_func):
             name="comments_all",
             target = backend.thread_comm,
             args=(com_feeder,))
+
+    BotThread(
+        name="reports_mod",
+        target = backend.thread_reports,
+        args=(new_report,))
 
 def update_all_wikis(tnow):
     global wiki_update_thread
@@ -517,7 +592,7 @@ def update_all_wikis(tnow):
         return
 
     last_wiki_update = tnow
-    BotThread(
+    wiki_update_thread = BotThread(
             name="wiki updater",
             target=update_wikis)
 

@@ -8,7 +8,7 @@ import logging
 from oslo_concurrency.watchdog import watch
 from database.db import db_data
 from modbot import hook
-from modbot.commands import add_command, execute_command
+from modbot.commands import add_inbox_command, add_report_command, execute_inbox_command, execute_report_command
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
@@ -95,7 +95,7 @@ class plugin_manager():
         print("[%d] Startup done!" % utils.utcnow())
 
         # Start watching subreddits
-        watch_all(self.feed_sub, self.feed_comms, self.feed_inbox)
+        watch_all(self.feed_sub, self.feed_comms, self.feed_inbox, self.feed_reports)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -136,9 +136,6 @@ class plugin_manager():
                 if sub not in self.watched_subs:
                     self.watched_subs[sub] = True
 
-    def add_inbox_cmd(self, func):
-        add_command(func)
-
     def add_plugin_function(self, func):
         """
         Add a function that was loaded from a plugin file
@@ -148,7 +145,9 @@ class plugin_manager():
 
         # Bot commands should go through another path
         if func.ctype == callback_type.CMD:
-            self.add_inbox_cmd(func)
+            add_inbox_command(func)
+        elif func.ctype == callback_type.REP:
+            add_report_command(func)
         else:
             self.add_reddit_function(func)
 
@@ -249,4 +248,11 @@ class plugin_manager():
         Feeds an inbox message
         """
 
-        execute_command(message, self.plugin_args)
+        execute_inbox_command(message, self.plugin_args)
+
+    def feed_reports(self, report):
+        """
+        Feeds a report command
+        """
+
+        execute_report_command(report, self.plugin_args)

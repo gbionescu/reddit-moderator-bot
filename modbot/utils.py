@@ -26,6 +26,7 @@ class timedata:
     HOUR_IN_DAY = 24
 
     SEC_IN_DAY = SEC_IN_MIN * MIN_IN_HOUR * HOUR_IN_DAY
+    SEC_IN_WEEK = SEC_IN_DAY * 7
 
 def get_utcnow():
     return datetime.datetime.utcnow()

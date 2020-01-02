@@ -46,8 +46,6 @@ def get_reddit(name="default", force_create=False):
 def thread_sub(feeder):
     """
     Watch submissions and trigger submission events
-
-    :param subreddit: subreddit to watch
     """
 
     first_set = False
@@ -79,8 +77,6 @@ def thread_sub(feeder):
 def thread_comm(feeder):
     """
     Watch comments and trigger comments events
-
-    :param subreddit: subreddit to watch
     """
 
     first_set = False
@@ -108,6 +104,28 @@ def thread_comm(feeder):
 
         # If a loop happens, sleep for a bit
         time.sleep(0.1)
+
+def thread_reports(new_report):
+    """
+    Watch reports and trigger events
+    """
+    while True:
+        session = get_reddit("reports")
+        try:
+            # Feed all comments
+            for reported_item in session.subreddit("mod").mod.reports():
+                for mod_report in reported_item.mod_reports:
+                    new_report(reported_item, mod_report[1], mod_report[0])
+
+        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+            print('PRAW exception ' + str(e))
+            session = get_reddit("reports", True)
+
+        except Exception:
+            import traceback; traceback.print_exc()
+
+        # If a loop happens, sleep for a bit
+        time.sleep(5)
 
 def get_wiki(subreddit, wiki_name):
     return subreddit.wiki[wiki_name]

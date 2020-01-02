@@ -51,11 +51,15 @@ class plugin_function():
         # Mark whether it's a raw command hook
         self.raw = False
 
-        # Get the permission level
+        # Set the default permission level
         self.permission = permission.ANY
 
         # Create attribute to track last time the hook was executed
         self.last_exec = 0
+
+        # For report commands, force the permission level to be set to moderator
+        if self.ctype == callback_type.REP:
+            self.permission = permission.MOD
 
         # Parse hook parameters
         if kwargs:
@@ -239,6 +243,21 @@ def command(*args, **kwargs):
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
         add_plugin_function(plugin_function(args[0], callback_type.CMD, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def report_command(*args, **kwargs):
+    """
+    Report reason command hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.REP, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.REP, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
