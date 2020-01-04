@@ -394,6 +394,10 @@ def thread_comm(feeder):
     global com_feeder
     com_feeder = feeder
 
+def thread_reports(feeder):
+    global reports_feeder
+    reports_feeder = feeder
+
 def set_initial_sub(sub):
     sub_feeder.set_initial(sub)
 

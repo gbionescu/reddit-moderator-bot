@@ -23,4 +23,4 @@ def test_inbox_help(create_bot):
     test.get_reddit().inbox.add_message("bot_owner", "/system_status")
     test.advance_time_10m()
 
-    assert(len(test.get_user("bot_owner").inbox) == 7)
+    assert(len(test.get_user("bot_owner").inbox) == 5)
