@@ -512,6 +512,9 @@ def new_report(item, author, body):
             report_cmds[item.id][author].append(body)
         report_cmds.sync()
 
+    if not author:
+        return
+
     # If the item is older than a week, ignore it
     if utcnow() - item.created_utc > timedata.SEC_IN_WEEK:
         return

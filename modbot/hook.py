@@ -81,7 +81,9 @@ class plugin_function():
 
             if "permission" in kwargs and kwargs["permission"] in permission:
                 self.permission = kwargs["permission"]
-                hook_rights[self.name] = self.permission
+
+        # Add permissions
+        hook_rights[self.name] = self.permission
 
     def set_last_exec(self, mark):
         self.last_exec = mark
@@ -111,9 +113,6 @@ class PluginWiki():
         logger.debug("Register wiki page " + wiki_page)
 
 def has_rights_on(level, command_name):
-    if command_name not in hook_rights:
-        return True
-
     if int(level) < int(hook_rights[command_name]):
         return False
 

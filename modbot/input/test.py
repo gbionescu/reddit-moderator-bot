@@ -57,20 +57,6 @@ utils_title.Parser = FakeParser
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
-# Cache of various objects
-cache_reddit = {}
-cache_subreddit = {}
-cache_submissions = {}
-cache_users = {}
-cache_urls = {}
-cache_info = {}
-
-sub_feeder = None
-com_feeder = None
-time_trigger = None
-moderated_subs = None
-moderator_for_sub = {}
-
 class FakeSubreddit():
 
     class FakeWiki():
@@ -125,10 +111,19 @@ class FakeSubreddit():
 
     def moderator(self):
         for mod in moderator_for_sub[self.name]:
-            yield FakeUser(get_user(mod))
+            yield get_user(mod)
+
+class FakeReport():
+    def __init__(self, reason, thing, author=None):
+        self.reason = reason
+        self.report_author = author
+        self.author = thing.author
+        self.created_utc = utils.utcnow()
+        self.id = thing.id
+        self.permalink = thing.permalink
+        self.subreddit = thing.subreddit
 
 class FakeSubmission():
-
     class FakeFlair():
         def __init__(self, flair_list, submission):
             self.flair_list = flair_list
@@ -151,6 +146,7 @@ class FakeSubmission():
     def __init__(self, subreddit_name, author_name, title, body=None, url=None):
         self.id = base36.dumps(FakeSubmission.crt_id)
         self.shortlink = "https://redd.it/" + self.id
+        self.permalink = self.shortlink
         self.created_utc = utils.utcnow()
         self.body = body
         self.url = url
@@ -208,13 +204,25 @@ class FakeSubmission():
     def set_link_flair_text(self, link_flair_text):
         self.link_flair_text = link_flair_text
 
-    def report(self, reason):
-        self.reports.append(reason)
+    def report(self, reason, author=None):
+        obj = None
+        if author:
+            obj = FakeReport(reason, self, get_user(author))
+        else:
+            obj = FakeReport(reason, self, None)
+        self.reports.append(obj)
+        feed_report(obj)
 
     def add_comment(self, author, body):
         self.comments.append(FakeComment(author, body, self))
 
 class FakeUser():
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
     def __init__(self, name):
         self.name = name
         self.inbox = []
@@ -309,6 +317,32 @@ class FakeComment():
         new_all_com(self)
 
 def create_bot(test_subreddit):
+    global cache_reddit
+    global cache_subreddit
+    global cache_submissions
+    global cache_users
+    global cache_urls
+    global cache_info
+    global sub_feeder
+    global com_feeder
+    global time_trigger
+    global moderated_subs
+    global moderator_for_sub
+
+    # Cache of various objects
+    cache_reddit = {}
+    cache_subreddit = {}
+    cache_submissions = {}
+    cache_users = {}
+    cache_urls = {}
+    cache_info = {}
+
+    sub_feeder = None
+    com_feeder = None
+    time_trigger = None
+    moderated_subs = None
+    moderator_for_sub = {}
+
     """
     Bring up bot logic
     """
@@ -397,6 +431,12 @@ def thread_comm(feeder):
 def thread_reports(feeder):
     global reports_feeder
     reports_feeder = feeder
+
+def feed_report(report):
+    if report.report_author:
+        reports_feeder(report, str(report.report_author), report.reason)
+    else:
+        reports_feeder(report, None, report.reason)
 
 def set_initial_sub(sub):
     sub_feeder.set_initial(sub)
