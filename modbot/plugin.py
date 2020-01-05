@@ -8,19 +8,19 @@ import logging
 from oslo_concurrency.watchdog import watch
 from database.db import db_data
 from modbot import hook
+from modbot.commands import add_inbox_command, add_report_command, execute_inbox_command, execute_report_command
 
 # meh method of getting the callback list after loading, but works for now
 from modbot.hook import callbacks, plugins_with_wikis
 from modbot.hook import callback_type
-from modbot.reloader import PluginReloader
 from modbot import utils
 from modbot.log import botlog
 from modbot.moderated_sub import DispatchAll, DispatchSubreddit
-from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick, get_submission, watch_all
+from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick, get_submission, watch_all, get_user
 
 logger = botlog("plugin")
 
-DISPATCH_ANY = 0
+DISPATCH_ANY = 0 # Generic key for dispatching items to all non-bound hooks
 
 class plugin_manager():
     # Dictionary of items that can be passed to plugins
@@ -28,7 +28,6 @@ class plugin_manager():
         bot_inst,
         master_subreddit,
         path_list=None,
-        with_reload=False,
         bot_config={},
         db_params={}):
         """
@@ -36,7 +35,6 @@ class plugin_manager():
         :param bot_inst: bot instance
         :param master_subreddit: subreddit where core bot configuration is stored
         :param path_list: list of folders relative to the location from where to load plugins
-        :param with_reload: True if plugin reloading shall be enabled
         :param bot_config: bot config data
         :param db_params: how to log in to the psql server
         """
@@ -46,11 +44,8 @@ class plugin_manager():
         self.per_last_exec = {}
         self.bot = bot_inst
         self.config = bot_config
-        self.with_reload = with_reload
         self.plugin_args = {}
-
-        # Functions loaded by plugins
-        self.plugin_functions = []
+        self.inbox_cmds = {}
 
         self.master_sub = get_subreddit(master_subreddit)
 
@@ -73,7 +68,7 @@ class plugin_manager():
         self.plugin_args["reddit"] = self
         self.plugin_args["config"] = self.config
         self.plugin_args["db"] = self.db
-        self.plugin_args["schedule_call"] = self.schedule_call
+        self.plugin_args["bot_owner"] = get_user(self.config.get("owner", "owner"))
 
         # Set start time
         self.start_time = utils.utcnow()
@@ -90,11 +85,6 @@ class plugin_manager():
         for path in path_list:
             self.load_plugins(path)
 
-        # Only use reloading in debug
-        if with_reload == "Yes":
-            self.reloader = PluginReloader(self)
-            self.reloader.start(path_list)
-
         print("[%d] Running on start plugins" % utils.utcnow())
         self.dispatchers[DISPATCH_ANY].run_on_start(False)
 
@@ -105,7 +95,7 @@ class plugin_manager():
         print("[%d] Startup done!" % utils.utcnow())
 
         # Start watching subreddits
-        watch_all(self.feed_sub, self.feed_comms)
+        watch_all(self.feed_sub, self.feed_comms, self.feed_inbox, self.feed_reports)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -116,17 +106,7 @@ class plugin_manager():
     def get_submission(self, url):
         return get_submission(url)
 
-    def schedule_call(self, func, when, args=[], kwargs={}):
-        self.db.add_sched_event(func.__module__, func.__name__, args, kwargs, when)
-
-    def add_plugin_function(self, func):
-        """
-        Add a function that was loaded from a plugin file
-
-        :param func: function to add
-        """
-        self.plugin_functions.append(func)
-
+    def add_reddit_function(self, func):
         # Check if we should add it to the generic dispatcher or a specific one
         if func.subreddit == None and func.wiki == None:
             self.dispatchers[DISPATCH_ANY].add_callback([func])
@@ -156,18 +136,22 @@ class plugin_manager():
                 if sub not in self.watched_subs:
                     self.watched_subs[sub] = True
 
+    def add_plugin_function(self, func):
+        """
+        Add a function that was loaded from a plugin file
+
+        :param func: function to add
+        """
+
+        # Bot commands should go through another path
+        if func.ctype == callback_type.CMD:
+            add_inbox_command(func)
+        elif func.ctype == callback_type.REP:
+            add_report_command(func)
+        else:
+            self.add_reddit_function(func)
+
     def load_plugin(self, fname):
-        """
-        Wrapper for loading a plugin. First unloads and the loads the given file.
-
-        :param fname: file name to load
-        """
-
-        # Try unloading the file first
-        self.unload_plugin(fname)
-        self._load_plugin(fname)
-
-    def _load_plugin(self, fname):
         """
         Load a plugin.
 
@@ -198,21 +182,6 @@ class plugin_manager():
             traceback.print_exc()
             return
 
-    def unload_plugin(self, fname):
-        """
-        Unload a plugin.
-
-        :param fname: unloads a plugin file
-        """
-
-        def rem_plugin(plist, path):
-            for elem in plist:
-                if elem.path == path:
-                    logger.debug("Removing %s" % str(elem))
-                    plist.remove(elem)
-
-        logger.debug("Unloading %s" % fname)
-
     def load_plugins(self, path):
         """
         Load plugins from a specified path.
@@ -223,7 +192,7 @@ class plugin_manager():
         logger.debug("Loading plugins from %s" % path)
         plugins = glob.iglob(os.path.join(path, '*.py'))
         for f in plugins:
-            result = self._load_plugin(f)
+            result = self.load_plugin(f)
             self.modules.append(result)
 
     def periodic_func(self, tnow):
@@ -250,8 +219,8 @@ class plugin_manager():
         :param submission: submission instance
         """
 
-        if self.given_watched_subs.get(submission.subreddit_name, None):
-            self.dispatchers[DISPATCH_ANY].run_submission(submission)
+        #if self.given_watched_subs.get(submission.subreddit_name, None):
+        self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
         disp = self.dispatchers.get(submission.subreddit_name, None)
         if disp:
@@ -266,9 +235,24 @@ class plugin_manager():
         :param submission: comment instance
         """
 
-        if self.given_watched_subs.get(comment.subreddit_name, None):
-            self.dispatchers[DISPATCH_ANY].run_comment(comment)
+        # TODO clean up watched_subs
+        #if self.given_watched_subs.get(comment.subreddit_name, None):
+        self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
         disp = self.dispatchers.get(comment.subreddit_name, None)
         if disp:
             disp.run_comment(comment)
+
+    def feed_inbox(self, message):
+        """
+        Feeds an inbox message
+        """
+
+        execute_inbox_command(message, self.plugin_args)
+
+    def feed_reports(self, report):
+        """
+        Feeds a report command
+        """
+
+        execute_report_command(report, self.plugin_args)

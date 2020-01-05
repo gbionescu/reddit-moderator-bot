@@ -19,6 +19,11 @@ For reference, there are a couple of plugin examples in plugins/.
 In order to start up the bot, a config file named 'reddit-bot.ini' needs to be created.
 Config file example:
 ```
+# Set details about the bot owner - used for signing messages and
+# forwarding messages received by the bot
+[owner]
+owner = i_am_the_bot_owner_and_this_is_an_invalid_username
+
 [reddit]
 user_agent = user agent to be used by the bot
 praw_config_section = PRAW config section to use for authenticating the bot

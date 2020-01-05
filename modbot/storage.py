@@ -20,9 +20,10 @@ class dstype():
         if not name.endswith(".json"):
             name = name + ".json"
 
+        parent = DS_LOC + parent
         logger.debug("Initializing %s, %s" % (parent, name))
 
-        os.makedirs(os.path.join(DS_LOC, parent, "backup"), exist_ok=True)
+        os.makedirs(os.path.join(parent, "backup"), exist_ok=True)
 
         self.location = parent + "/" + name
         self.backup_name = parent + "/backup/" + name
@@ -38,15 +39,24 @@ class dstype():
         try:
             if os.path.isfile(location):
                 logger.info("Load file %s linux" % location)
-                data = json.load(open(DS_LOC + location, "r"))
+                data = json.load(open(location, "r"))
                 return data
-            elif os.path.isfile(DS_LOC + self.backup_name):
-                logger.error("Trying backup %s" % (DS_LOC + self.backup_name))
+            elif os.path.isfile(self.backup_name):
+                logger.error("Trying backup %s" % (self.backup_name))
                 # Try the backup
-                data = json.load(open(DS_LOC + self.backup_name, "r"))
+                data = json.load(open(self.backup_name, "r"))
                 logger.critical("Loaded backup for " + self.location)
                 return data
         except:
+            try:
+                if os.path.isfile(self.backup_name):
+                    logger.error("Trying backup %s" % (self.backup_name))
+                    # Try the backup
+                    data = json.load(open(self.backup_name, "r"))
+                    logger.critical("Loaded backup for " + self.location)
+                    return data
+            except:
+                return None
             logger.error("Could not load " + self.location)
             return None
 
@@ -87,14 +97,14 @@ def do_sync(obj, name, backup_name):
     @lockutils.synchronized(name)
     def do_blocking_sync(obj, name, backup_name):
         try:
-            if os.path.isfile(DS_LOC + name):
+            if os.path.isfile(name):
                 logger.debug("Do sync on " + name)
 
                 # Check if the current file is valid
-                json.load(open(DS_LOC + name, "r"))
+                json.load(open(name, "r"))
 
                 # If yes, do a backup
-                shutil.copy(DS_LOC + name, DS_LOC + backup_name)
+                shutil.copy(name, backup_name)
 
                 logger.debug("Load/sync OK")
         except FileNotFoundError:
@@ -107,7 +117,7 @@ def do_sync(obj, name, backup_name):
         logger.debug("Open file")
 
         out = json.dumps(obj, indent=4, sort_keys=True)
-        file = open(DS_LOC + name, "w")
+        file = open(name, "w")
         file.write(out)
         file.close()
 

@@ -133,14 +133,10 @@ class DispatchAll():
             except Exception:
                 logging.exception("Exception when running " + str(element.func))
         if with_thread:
-            #self.logger.debug("triggering " + str(el.func))
-            pthread = BotThread(
+            BotThread(
                 name="periodic_" + str(el.func),
-                target = trigger_func,
+                target=trigger_func,
                 args=(el, {**self.plugin_args, **extra_args},))
-
-            pthread.setDaemon(True)
-            pthread.start()
         else:
             trigger_func(el, {**self.plugin_args, **extra_args})
 
@@ -168,8 +164,9 @@ class DispatchAll():
         # Create the container each time
         self.enabled_wiki_hooks = self.HookContainer(self.call_plugin_func)
         for wiki in self.enabled_wikis:
-            # Add it to the enabled wiki hook list
-            self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
+            if wiki in self.wiki_pages_callbacks:
+                # Add it to the enabled wiki hook list
+                self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
 
     def enable_wiki(self, wiki):
         if wiki not in self.enabled_wikis:
@@ -178,8 +175,9 @@ class DispatchAll():
 
             self.rebuild_wiki_hooks()
 
-            # Call on start hooks for the current wiki
-            self.wiki_pages_callbacks[wiki].run_on_start()
+            if wiki in self.wiki_pages_callbacks:
+                # Call on start hooks for the current wiki
+                self.wiki_pages_callbacks[wiki].run_on_start()
 
     def disable_wiki(self, wiki):
         if wiki in self.enabled_wikis:
@@ -202,7 +200,7 @@ class DispatchAll():
     def run_submission(self, submission):
         extra = {
             "submission": submission,
-            "subreddit": submission.subreddit}
+            "subreddit_name": submission.subreddit_name}
 
         self.generic_hooks.run_submission(submission, extra)
         self.enabled_wiki_hooks.run_submission(submission, extra)
@@ -210,7 +208,7 @@ class DispatchAll():
     def run_comment(self, comment):
         extra = {
             "comment": comment,
-            "subreddit": comment.subreddit}
+            "subreddit_name": comment.subreddit_name}
 
         self.generic_hooks.run_comment(comment, extra)
         self.enabled_wiki_hooks.run_comment(comment, extra)
@@ -269,7 +267,7 @@ class DispatchSubreddit(DispatchAll):
         Get the control panel content
         """
         try:
-            self.crt_control_panel = self.subreddit.wiki("control_panel").get_content()
+            self.crt_control_panel = self.subreddit.wiki("control_panel", force_live=True).get_content()
         except:
             import traceback
             traceback.print_exc()

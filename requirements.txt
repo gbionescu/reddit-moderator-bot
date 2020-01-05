@@ -6,3 +6,4 @@ pytest
 pytest-cov
 sqlalchemy
 watchdog
+psutil

@@ -10,3 +10,4 @@ storage_*/
 .pytest_cache/*
 tests/cov*
 .coverage
+logs

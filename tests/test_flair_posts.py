@@ -34,7 +34,6 @@ def test_flair_warning(create_bot):
 
     # Create a new submissinon that we will be testing against
     test_submission = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1", title="title_test")
-    test.new_all_sub(test_submission)
 
     # Give the bot time to send all messages
     test.advance_time_30m()
@@ -112,7 +111,6 @@ def test_auto_flair(create_bot):
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe2",
         title="blabla test4 blabla")
-    test.new_all_sub(test_submission2)
 
     # Give the bot time to send all messages
     for _ in range(30):
@@ -128,8 +126,6 @@ def test_auto_flair(create_bot):
         title="blabla 1234 blabla",
         body="qoweiqoiejqoiwjq test5 pqioejoqij")
 
-    test.new_all_sub(test_submission3)
-
     # Give the bot time to send all messages
     for _ in range(30):
         test.advance_time_60s()
@@ -143,8 +139,6 @@ def test_auto_flair(create_bot):
         title="blabla 1234 blabla",
         url="https://www.redditbot.com/12345.123")
 
-    test.new_all_sub(test_submission4)
-
     # Give the bot time to send all messages
     test.advance_time_30m()
 
@@ -155,8 +149,6 @@ def test_auto_flair(create_bot):
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
         title="blabla prio2 blabla")
-
-    test.new_all_sub(test_submission5)
 
     # Give the bot time to send all messages
     test.advance_time_30m()
@@ -195,8 +187,6 @@ def test_corner_cases(create_bot):
         author_name="JohnDoe123",
         title="random title")
 
-    test.new_all_sub(test_submission3)
-
     # Advance a few minutes so that one message is sent
     test.advance_time_10m()
 
@@ -219,12 +209,11 @@ def test_corner_cases(create_bot):
     assert(len(user.inbox) == 3)
 
     # Try to exceed minimum trigger time
-    test_submission4 = test.FakeSubmission(
+    test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="granular",
         title="random title")
-    test.advance_time_10m()
-    test.new_all_sub(test_submission4)
+    test.advance_time(test.GLOBAL_TIME + 61)
 
     assert(len(test.get_user("granular").inbox) == 0)
 

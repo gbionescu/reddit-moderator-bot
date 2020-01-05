@@ -5,6 +5,7 @@ import inspect
 callbacks = []
 plugins_with_wikis = []
 logger = botlog('hook')
+hook_rights = {} # Map of non standard hook rights
 
 @enum.unique
 class subreddit_type(enum.Enum):
@@ -12,11 +13,19 @@ class subreddit_type(enum.Enum):
 
 @enum.unique
 class callback_type(enum.Enum):
-    SUB = 0
-    COM = 1
-    PER = 2
-    ONL = 3
-    ONS = 4
+    SUB = 0 # Submission
+    COM = 1 # Comment
+    PER = 2 # Periodic
+    ONL = 3 # On load
+    ONS = 4 # On start
+    CMD = 5 # message command
+    REP = 6 # report command
+
+@enum.unique
+class permission(enum.IntEnum):
+    ANY = 0
+    MOD = 10
+    OWNER = 1000
 
 class plugin_function():
     def __init__(self, func, ctype, kwargs, path):
@@ -31,17 +40,29 @@ class plugin_function():
         self.args = kwargs
         self.path = path
         self.args = inspect.getfullargspec(func)[0]
+        self.name = func.__name__
+        self.doc = func.__doc__
 
         self.wiki = None
         self.subreddit = None
         self.period = None
         self.first = None
 
+        # Mark whether it's a raw command hook
+        self.raw = False
+
+        # Set the default permission level
+        self.permission = permission.ANY
+
         # Create attribute to track last time the hook was executed
         self.last_exec = 0
 
+        # For report commands, force the permission level to be set to moderator
+        if self.ctype == callback_type.REP:
+            self.permission = permission.MOD
+
+        # Parse hook parameters
         if kwargs:
-            # Check plugin_function type and parse parameters
             if 'subreddit' in kwargs:
                 self.subreddit = kwargs['subreddit']
 
@@ -54,6 +75,15 @@ class plugin_function():
                     self.period = kwargs['period']
                 if 'first' in kwargs:
                     self.first = kwargs['first']
+
+            if "raw" in kwargs:
+                self.raw = kwargs["raw"]
+
+            if "permission" in kwargs and kwargs["permission"] in permission:
+                self.permission = kwargs["permission"]
+
+        # Add permissions
+        hook_rights[self.name] = self.permission
 
     def set_last_exec(self, mark):
         self.last_exec = mark
@@ -81,6 +111,12 @@ class PluginWiki():
         self.default_enabled = default_enabled
 
         logger.debug("Register wiki page " + wiki_page)
+
+def has_rights_on(level, command_name):
+    if int(level) < int(hook_rights[command_name]):
+        return False
+
+    return True
 
 def register_wiki_page(
         wiki_page,
@@ -110,7 +146,6 @@ def register_wiki_page(
     plugins_with_wikis.append(obj)
 
     return obj
-
 
 def add_plugin_function(obj):
     """
@@ -192,6 +227,36 @@ def on_start(*args, **kwargs):
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
         add_plugin_function(plugin_function(args[0], callback_type.ONS, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def command(*args, **kwargs):
+    """
+    Message command hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.CMD, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.CMD, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def report_command(*args, **kwargs):
+    """
+    Report reason command hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.REP, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.REP, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)

@@ -30,14 +30,13 @@ def test_repost_detector(create_bot):
     # Create a new submissinon that we will be testing against
     test_submission1 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="AAAA BBBB CCCC DDDD EEEE FFFF")
-    test.new_all_sub(test_submission1)
 
     test.advance_time_30m()
 
     # Create another submission
     test_submission2 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="AAAA BBBB CCCC DDDD EEEE GGGG")
-    test.new_all_sub(test_submission2)
+    test.advance_time_10m()
 
     assert(len(test_submission2.reports) == 1)
 
@@ -46,14 +45,13 @@ def test_repost_detector(create_bot):
     # Test short word elimination
     test_submission3 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="AAAA BBBB CCCC DDDD")
-    test.new_all_sub(test_submission3)
 
     assert(len(test_submission3.reports) == 0)
 
     # Jump in time one month
     test.advance_time(2592000)
-    test.new_all_sub(test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAB BBBC CCCD DDDE EEEG GGGF"))
+    test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
+        title="AAAB BBBC CCCD DDDE EEEG GGGF")
     # Give the chance to remove a post from storage due to being too old
     test.advance_time_30m()
 
