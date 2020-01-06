@@ -448,7 +448,7 @@ cache_data = {}
 class CacheData():
     def __init__(self, interval):
         self.interval = interval
-        self.last_check = 0
+        self.last_check = -1000000
         self.opaque = None
 
     def expired(self):
