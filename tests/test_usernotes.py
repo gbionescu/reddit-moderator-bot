@@ -40,7 +40,7 @@ def test_usernotes(create_bot):
 
     submission.report("/get_notes", "mod1")
     assert(len(mod1.inbox) == 1)
-    assert("Usernotes not found" in mod1.inbox[0])
+    assert("Usernotes not found" in mod1.inbox[0][0])
     mod1.inbox = []
 
     submission2 = test.FakeSubmission(
