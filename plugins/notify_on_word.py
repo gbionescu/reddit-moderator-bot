@@ -58,6 +58,9 @@ wiki = hook.register_wiki_page(
     wiki_change_notifier = wiki_changed)
 
 def check_words(text, config, author):
+    if not author:
+        return []
+
     if author.name in config.ignore_users:
         return []
 
