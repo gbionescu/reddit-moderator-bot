@@ -24,7 +24,7 @@ def get_notes(report):
     data = json.loads(data_raw)
 
     if report.author_name not in data:
-        report.author.send_pm("Usernotes not found", "No notes found")
+        report.author.send_pm("Usernotes not found for %s" % report.author_name, "No notes found")
         return
 
     reply = "User %s has the following notes:\n\n" % report.author_name
