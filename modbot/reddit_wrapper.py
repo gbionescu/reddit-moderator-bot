@@ -26,7 +26,7 @@ report_cmds = None
 last_moderator_subs_check = 0
 moderator_subs_list = []
 
-COLD_WIKI_LIMIT = timedata.SEC_IN_MIN
+COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 5
 update_intervals = {
     "wiki_update": timedata.SEC_IN_MIN,
     "inbox_update": 10,
