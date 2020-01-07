@@ -8,6 +8,7 @@ from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
 
 logger = botlog("reddit_wrapper", console=logging.DEBUG)
+audit = botlog("audit", console=logging.DEBUG)
 watch_dict = {} # maps watched subreddits to threads
 
 backend = None
@@ -103,7 +104,7 @@ class submission():
         return self._raw.id
 
     def report(self, reason):
-        logger.debug("[%s] Reported with reason: %s" % (self, reason))
+        audit.debug("[%s] Reported with reason: %s" % (self, reason))
         self._raw.report(reason)
 
     @property
@@ -226,6 +227,7 @@ class subreddit():
     def send_modmail(self, subject, text, skip_signature=False):
         if not skip_signature and bot_signature:
             text += bot_signature
+        audit.debug("[%s] Send modmail: %s / %s" % (self, subject, text))
         self._raw.message(subject, text)
 
     def wiki(self, name, force_live=False):
@@ -266,7 +268,7 @@ class user():
         # Don't send message to self
         if self._raw.name == backend.get_reddit().user.me().name:
             return
-        logger.debug("[%s] Send PM: %s / %s" % (self, subject, text))
+        audit.debug("[%s] Send PM: %s / %s" % (self, subject, text))
 
         if not skip_signature and bot_signature:
             text += bot_signature

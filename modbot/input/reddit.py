@@ -10,6 +10,7 @@ praw_credentials = None
 praw_user_agent = None
 praw_inst = {} # Dictionary of praw sessions
 logger = botlog("redditinput", console=logging.DEBUG)
+audit = botlog("audit", console=logging.DEBUG)
 
 class Thing():
     """
@@ -84,6 +85,7 @@ def thread_sub(feeder):
         #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
         sub_id = get_item()
         if sub_id:
+            audit.debug("Feeding sub ID %s" % sub_id)
             feeder.set_initial(Thing(sub_id))
             first_set = True
         else:
