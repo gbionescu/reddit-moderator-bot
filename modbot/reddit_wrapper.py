@@ -23,6 +23,7 @@ bot_signature = None
 inbox_thread = None
 last_inbox_update = None
 report_cmds = None
+cache_data = None
 
 last_moderator_subs_check = 0
 moderator_subs_list = []
@@ -446,8 +447,10 @@ class BotFeeder():
         worker["finished"] = 1
         self.storage.sync()
 
-cache_data = {}
 class CacheData():
+    """
+    Holds information about a cached object - whether it's time to update it or not
+    """
     def __init__(self, interval):
         self.interval = interval
         self.last_check = -1000000
@@ -464,10 +467,10 @@ class CacheData():
     def mark_updated(self):
         self.last_check = utcnow()
 
-def add_cache_obj(name, interval):
-    cache_data[name] = CacheData(interval)
-
 def is_expired(name):
+    """
+    Check if a cached object has expired
+    """
     if name not in cache_data:
         cache_data[name] = CacheData(update_intervals[name])
 
@@ -479,6 +482,7 @@ def set_input_type(input_type):
     global wiki_storages
     global subreddit_cache
     global report_cmds
+    global cache_data
 
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
@@ -486,6 +490,7 @@ def set_input_type(input_type):
     all_data = dsdict("all", "last_seen") # Last seen /r/all subs and comms
     wiki_storages = {}
     subreddit_cache = {}
+    cache_data = {}
     report_cmds = dsdict("mod", "cmds")
 
 def set_credentials(credentials, user_agent):
@@ -666,7 +671,6 @@ def check_inbox(tnow):
     if not is_expired("inbox_update"):
         return
 
-    last_inbox_update = tnow
     inbox_thread = BotThread(
         _check_inbox,
         "inbox_thread")
