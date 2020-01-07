@@ -99,6 +99,7 @@ def thread_sub(feeder):
         #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
         sub_id = get_item()
         if sub_id:
+            audit.debug("Feeding sub ID %s" % sub_id)
             feeder.new_all_object(Thing(sub_id))
 
 
