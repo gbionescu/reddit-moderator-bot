@@ -40,3 +40,6 @@ database = dbname
 user = dbuser
 password = dbpassword
 ```
+Then, make sure that you install all the prerequisites listed in requirements.txt.
+
+Finally, you can run `python3 moderator-bot.py` to start the bot.
