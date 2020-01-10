@@ -8,6 +8,7 @@ from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
 
 logger = botlog("reddit_wrapper", console=logging.DEBUG)
+audit = botlog("audit", console=logging.DEBUG)
 watch_dict = {} # maps watched subreddits to threads
 
 backend = None
@@ -22,10 +23,18 @@ bot_signature = None
 inbox_thread = None
 last_inbox_update = None
 report_cmds = None
+cache_data = None
 
-WIKI_UPDATE_INTERVAL = timedata.SEC_IN_MIN
-INBOX_UPDATE_INTERVAL = 10
-COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 15
+last_moderator_subs_check = 0
+moderator_subs_list = []
+
+COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 5
+update_intervals = {
+    "wiki_update": timedata.SEC_IN_MIN,
+    "inbox_update": 10,
+    "moderated_subs": timedata.SEC_IN_MIN * 30,
+    "moderator_users": timedata.SEC_IN_MIN * 30
+}
 
 class submission():
     """
@@ -96,7 +105,7 @@ class submission():
         return self._raw.id
 
     def report(self, reason):
-        logger.debug("[%s] Reported with reason: %s" % (self, reason))
+        audit.debug("[%s] Reported with reason: %s" % (self, reason))
         self._raw.report(reason)
 
     @property
@@ -219,6 +228,7 @@ class subreddit():
     def send_modmail(self, subject, text, skip_signature=False):
         if not skip_signature and bot_signature:
             text += bot_signature
+        audit.debug("[%s] Send modmail: %s / %s" % (self, subject, text))
         self._raw.message(subject, text)
 
     def wiki(self, name, force_live=False):
@@ -259,7 +269,7 @@ class user():
         # Don't send message to self
         if self._raw.name == backend.get_reddit().user.me().name:
             return
-        logger.debug("[%s] Send PM: %s / %s" % (self, subject, text))
+        audit.debug("[%s] Send PM: %s / %s" % (self, subject, text))
 
         if not skip_signature and bot_signature:
             text += bot_signature
@@ -381,16 +391,20 @@ class BotFeeder():
         """
         Clean up finished workers
         """
+        changed = False
         # The first element should always be the one that should be consumed
-        if len(self.storchild["workers"]) > 0 and self.storchild["workers"][0]["finished"] == 1:
+        while len(self.storchild["workers"]) > 0 and self.storchild["workers"][0]["finished"] == 1:
+            changed = True
             element = self.storchild["workers"][0]
 
             self.storchild["fed"] = element["end"]
             self.storchild["drift"] = self.storchild["seen"] - self.storchild["fed"]
             self.storchild["workers"] = self.storchild["workers"][1:]
-            self.storage.sync()
             #print("Ended: %d -> %d" % (element["start"], element["end"]))
             #print("Pending %d, Fed %d\n" % (self.storchild["pending"], self.storchild["fed"]))
+
+        if changed:
+            self.storage.sync()
 
     def feed_new_elements(self):
         """
@@ -433,15 +447,42 @@ class BotFeeder():
         worker["finished"] = 1
         self.storage.sync()
 
+class CacheData():
+    """
+    Holds information about a cached object - whether it's time to update it or not
+    """
+    def __init__(self, interval):
+        self.interval = interval
+        self.last_check = -1000000
+        self.opaque = None
+
+    def expired(self):
+        if utcnow() - self.last_check > self.interval:
+            return True
+        return False
+
+    def set_opaque(self, opaque):
+        self.opaque = opaque
+
+    def mark_updated(self):
+        self.last_check = utcnow()
+
+def is_expired(name):
+    """
+    Check if a cached object has expired
+    """
+    if name not in cache_data:
+        cache_data[name] = CacheData(update_intervals[name])
+
+    return cache_data[name].expired()
+
 def set_input_type(input_type):
     global backend
     global all_data
     global wiki_storages
     global subreddit_cache
-    global last_wiki_update
-    global wiki_update_thread
-    global last_inbox_update
     global report_cmds
+    global cache_data
 
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
@@ -449,9 +490,7 @@ def set_input_type(input_type):
     all_data = dsdict("all", "last_seen") # Last seen /r/all subs and comms
     wiki_storages = {}
     subreddit_cache = {}
-    last_wiki_update = utcnow()
-    last_inbox_update = utcnow()
-    wiki_update_thread = None
+    cache_data = {}
     report_cmds = dsdict("mod", "cmds")
 
 def set_credentials(credentials, user_agent):
@@ -474,23 +513,35 @@ def get_moderated_subs():
     """
     Get list of moderated subreddits
     """
+    if not is_expired("moderated_subs"):
+        return cache_data["moderated_subs"].opaque
+
+    moderator_subs_list = []
     for i in backend.get_reddit().user.moderator_subreddits():
         if i.display_name.startswith("u_"):
             continue
 
-        yield i.display_name
+        moderator_subs_list.append(i.display_name)
+
+    cache_data["moderated_subs"].set_opaque(moderator_subs_list)
+    cache_data["moderated_subs"].mark_updated()
+    return moderator_subs_list
 
 def get_moderator_users():
     """
     Returns list of moderators where the bot is also a mod
     """
-    mod_list = []
+    if not is_expired("moderator_users"):
+        return cache_data["moderator_users"].opaque
 
+    mod_list = []
     for sub in get_moderated_subs():
         for mod in backend.get_reddit().subreddit(sub).moderator():
             mod_list.append(str(mod))
 
-    return list(set(mod_list))
+    cache_data["moderator_users"].set_opaque(list(set(mod_list)))
+    cache_data["moderator_users"].mark_updated()
+    return cache_data["moderator_users"].opaque
 
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
@@ -551,8 +602,8 @@ def watch_all(sub_func, comm_func, inbox_func, report_func):
     global report_feeder
 
     # Initialize feeder classes
-    sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 50)
-    com_feeder = BotFeeder(all_data, "t1_", comm_func, comment, 20, 100)
+    sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 99)
+    com_feeder = BotFeeder(all_data, "t1_", comm_func, comment, 10, 99)
 
     inbox_feeder = inbox_func
     report_feeder = report_func
@@ -575,7 +626,6 @@ def watch_all(sub_func, comm_func, inbox_func, report_func):
 
 def update_all_wikis(tnow):
     global wiki_update_thread
-    global last_wiki_update
 
     def update_wikis():
         logger.debug("Starting wiki update")
@@ -591,13 +641,14 @@ def update_all_wikis(tnow):
     if wiki_update_thread and wiki_update_thread.isAlive():
         return
 
-    if tnow - last_wiki_update < WIKI_UPDATE_INTERVAL:
+    if not is_expired("wiki_update"):
         return
 
-    last_wiki_update = tnow
     wiki_update_thread = BotThread(
             name="wiki updater",
             target=update_wikis)
+
+    cache_data["wiki_update"].mark_updated()
 
 def check_inbox(tnow):
     """
@@ -614,17 +665,16 @@ def check_inbox(tnow):
                 inbox_feeder(inboxmessage(message))
 
     global inbox_thread
-    global last_inbox_update
     if inbox_thread and inbox_thread.isAlive():
         return
 
-    if tnow - last_inbox_update < INBOX_UPDATE_INTERVAL:
+    if not is_expired("inbox_update"):
         return
 
-    last_inbox_update = tnow
     inbox_thread = BotThread(
         _check_inbox,
         "inbox_thread")
+    cache_data["inbox_update"].mark_updated()
 
 def start_tick(period, call_per):
     def tick(tnow):

@@ -1,6 +1,8 @@
 import praw, prawcore
 import logging
 import time
+import requests
+import json
 from modbot.log import botlog
 from modbot.utils import utcnow, timedata
 
@@ -8,6 +10,14 @@ praw_credentials = None
 praw_user_agent = None
 praw_inst = {} # Dictionary of praw sessions
 logger = botlog("redditinput", console=logging.DEBUG)
+audit = botlog("audit", console=logging.DEBUG)
+
+class Thing():
+    """
+    Thing class to mock reddit thing
+    """
+    def __init__(self, id):
+        self.id = id
 
 def set_praw_opts(credentials, user_agent):
     """
@@ -18,6 +28,20 @@ def set_praw_opts(credentials, user_agent):
 
     praw_credentials = credentials
     praw_user_agent = user_agent
+
+def get_reddit_object(url):
+    """
+    Gets a reddit json page and extracts the first thing ID
+    """
+    try:
+        user_agent = praw_user_agent
+        headers = {'User-Agent': user_agent}
+        response = requests.get(url, headers=headers)
+        data = json.loads(response.text)
+
+        return data["data"]["children"][0]["data"]["id"]
+    except:
+        return None
 
 def get_reddit(name="default", force_create=False):
     """
@@ -47,63 +71,63 @@ def thread_sub(feeder):
     """
     Watch submissions and trigger submission events
     """
+    def get_item():
+        try:
+            for sub in get_reddit().subreddit("all").stream.submissions(pause_after=0, skip_existing=True):
+                return sub.id
+        except:
+            return None
 
     first_set = False
-    while True:
-        session = get_reddit("submissions_all")
-        logger.debug("Getting base submission")
-        # Get one submission and set it as the initial one
-        if not first_set:
-            for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
-                feeder.set_initial(sub)
-                break
+    logger.debug("Getting base submission")
+    # Get one submission and set it as the initial one
+    while not first_set:
+        #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
+        sub_id = get_item()
+        if sub_id:
+            audit.debug("Feeding sub ID %s" % sub_id)
+            feeder.set_initial(Thing(sub_id))
             first_set = True
+        else:
+            time.sleep(1)
 
-        try:
-            # Feed all submissions
-            for sub in session.subreddit("all").stream.submissions(pause_after=None, skip_existing=True):
-                feeder.new_all_object(sub)
+    while True:
+        # Do this every 30s
+        time.sleep(30)
 
-        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
-            print('PRAW exception ' + str(e))
-            session = get_reddit("submissions_all", True)
+        # Feed all submissions
+        #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
+        sub_id = get_item()
+        if sub_id:
+            audit.debug("Feeding sub ID %s" % sub_id)
+            feeder.new_all_object(Thing(sub_id))
 
-        except Exception:
-            import traceback; traceback.print_exc()
-
-        # If a loop happens, sleep for a bit
-        time.sleep(0.1)
 
 def thread_comm(feeder):
     """
     Watch comments and trigger comments events
     """
 
+    # Disabled for now, as it caused the bot to do to many requests
+    return
     first_set = False
-    while True:
-        session = get_reddit("comments_all")
-        # Get one submission and set it as the initial one
-        logger.debug("Getting base comment")
-        if not first_set:
-            for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
-                feeder.set_initial(comm)
-                break
+    logger.debug("Getting base comment")
+    # Get one comment and set it as the initial one
+    while not first_set:
+        comm_id = get_reddit_object("https://www.reddit.com/r/all/comments.json")
+        if comm_id:
+            feeder.set_initial(Thing(comm_id))
             first_set = True
+        else:
+            time.sleep(1)
 
-        try:
-            # Feed all comments
-            for comm in session.subreddit("all").stream.comments(pause_after=None, skip_existing=True):
-                feeder.new_all_object(comm)
+    while True:
+        # Do this every 10s
+        time.sleep(10)
 
-        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
-            print('PRAW exception ' + str(e))
-            session = get_reddit("comments_all", True)
-
-        except Exception:
-            import traceback; traceback.print_exc()
-
-        # If a loop happens, sleep for a bit
-        time.sleep(0.1)
+        # Feed all submissions
+        comm_id = get_reddit_object("https://www.reddit.com/r/all/comments.json")
+        feeder.new_all_object(Thing(comm_id))
 
 def thread_reports(new_report):
     """
