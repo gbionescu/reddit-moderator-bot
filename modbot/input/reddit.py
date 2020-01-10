@@ -1,16 +1,15 @@
 import praw, prawcore
-import logging
 import time
 import requests
 import json
-from modbot.log import botlog
+from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata
 
 praw_credentials = None
 praw_user_agent = None
 praw_inst = {} # Dictionary of praw sessions
-logger = botlog("redditinput", console=logging.DEBUG)
-audit = botlog("audit", console=logging.DEBUG)
+logger = botlog("redditinput", console_level=loglevel.DEBUG)
+audit = botlog("audit", console_level=loglevel.DEBUG)
 
 class Thing():
     """

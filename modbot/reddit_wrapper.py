@@ -1,14 +1,13 @@
 import traceback
 import time
 import base36
-import logging
 import importlib
-from modbot.log import botlog
+from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
 
-logger = botlog("reddit_wrapper", console=logging.DEBUG)
-audit = botlog("audit", console=logging.DEBUG)
+logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
+audit = botlog("audit", console_level=loglevel.DEBUG)
 watch_dict = {} # maps watched subreddits to threads
 
 backend = None

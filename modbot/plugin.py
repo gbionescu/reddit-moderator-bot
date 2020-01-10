@@ -4,7 +4,6 @@ import glob
 import importlib
 import time
 import configparser
-import logging
 from oslo_concurrency.watchdog import watch
 from database.db import db_data
 from modbot import hook
