@@ -20,6 +20,7 @@ class callback_type(enum.Enum):
     ONS = 4 # On start
     CMD = 5 # message command
     REP = 6 # report command
+    MLG = 7 # modlog event
 
 @enum.unique
 class permission(enum.IntEnum):
@@ -257,6 +258,21 @@ def report_command(*args, **kwargs):
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
         add_plugin_function(plugin_function(args[0], callback_type.REP, None, inspect.stack()[1][1]))
+        return args[0]
+    else: # this decorator if being used indirectly, so return a decorator function
+        return lambda func: _command_hook(func)
+
+def modlog(*args, **kwargs):
+    """
+    modlog hook
+    """
+    def _command_hook(func):
+        add_plugin_function(plugin_function(func, callback_type.MLG, kwargs, inspect.stack()[1][1]))
+        return func
+
+    # this decorator is being used directly
+    if len(args) == 1 and callable(args[0]):
+        add_plugin_function(plugin_function(args[0], callback_type.MLG, None, inspect.stack()[1][1]))
         return args[0]
     else: # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)

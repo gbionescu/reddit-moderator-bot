@@ -1,17 +1,16 @@
 import os
 import json
 import collections
-import logging
 import platform
 import shutil
+from modbot.log import botlog, loglevel
 from shutil import copyfile
 from oslo_concurrency import lockutils
 
-logger = logging.getLogger("storage")
-logger.setLevel(logging.ERROR)
-fh = logging.FileHandler("storage.log")
-fh.setLevel(logging.ERROR)
-logger.addHandler(fh)
+logger = botlog(
+    "storage.log",
+    console_level=loglevel.ERROR,
+    file_level=loglevel.ERROR)
 
 DS_LOC = "storage_data/"
 

@@ -39,6 +39,11 @@ host = localhost
 database = dbname
 user = dbuser
 password = dbpassword
+
+# Add optional Discord webhook for each botlog() instance
+[webhook_discord]
+storage=https://discord.web.hook1
+audit=https://discord.web.hook2
 ```
 Then, make sure that you install all the prerequisites listed in requirements.txt.
 

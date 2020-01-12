@@ -54,6 +54,28 @@ class FakeParser():
 utils_title.Parser = FakeParser
 ###############################################################################
 
+###############################################################################
+# Override webhook helpers
+###############################################################################
+import discord_webhook
+class FakeDiscordWebhook():
+    def __init__(self, url, content=None):
+        self.url = url
+        self.content = content
+        cache_webhooks[url] = self
+
+        self.messages = []
+
+    def execute(self):
+        self.messages.append(self.content)
+
+    def add_embed(self, obj):
+        pass
+
+discord_webhook.DiscordWebhook = FakeDiscordWebhook
+###############################################################################
+
+
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
@@ -75,6 +97,25 @@ class FakeSubreddit():
             self.content = content
             self.revision_by = get_user(author)
             self.revision_date = int(utils.utcnow())
+
+    class FakeModLog():
+        id = 0
+
+        def __init__(self, author_name, target_author, action, details, description, subreddit_instance):
+            self.mod = get_user(author_name)
+            self.target_author = target_author
+            self.action = action
+            self.description = description
+            self.details = details
+            self.subreddit = subreddit_instance.display_name
+            self.target_permalink = None
+
+            # Set id
+            self.id = FakeSubreddit.FakeModLog.id
+            FakeSubreddit.FakeModLog.id += 1
+
+            # Set created
+            self.created_utc = utils.utcnow()
 
     def __init__(self, name):
         self.name = name
@@ -112,6 +153,10 @@ class FakeSubreddit():
     def moderator(self):
         for mod in moderator_for_sub[self.name]:
             yield get_user(mod)
+
+    def add_modlog(self, author_name, target_author, modlog_type, details, description):
+        obj = FakeSubreddit.FakeModLog(author_name, target_author, modlog_type, details, description, self)
+        feed_modlog(obj)
 
 class FakeReport():
     def __init__(self, reason, thing, author=None):
@@ -323,6 +368,7 @@ def create_bot(test_subreddit):
     global cache_users
     global cache_urls
     global cache_info
+    global cache_webhooks
     global sub_feeder
     global com_feeder
     global time_trigger
@@ -336,6 +382,7 @@ def create_bot(test_subreddit):
     cache_users = {}
     cache_urls = {}
     cache_info = {}
+    cache_webhooks = {}
 
     sub_feeder = None
     com_feeder = None
@@ -432,11 +479,18 @@ def thread_reports(feeder):
     global reports_feeder
     reports_feeder = feeder
 
+def thread_modlog(modlog_func):
+    global modlog_feeder
+    modlog_feeder = modlog_func
+
 def feed_report(report):
     if report.report_author:
         reports_feeder(report, str(report.report_author), report.reason)
     else:
         reports_feeder(report, None, report.reason)
+
+def feed_modlog(modlog):
+    modlog_feeder(modlog)
 
 def set_initial_sub(sub):
     sub_feeder.set_initial(sub)
@@ -493,3 +547,9 @@ def set_moderated_subs(lst):
 
 def set_moderator_for_sub(sub, lst):
     moderator_for_sub[sub] = lst
+
+def get_webhook(url):
+    if url in cache_webhooks:
+        return cache_webhooks[url]
+    else:
+        return None

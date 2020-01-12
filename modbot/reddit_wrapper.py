@@ -1,14 +1,13 @@
 import traceback
 import time
 import base36
-import logging
 import importlib
-from modbot.log import botlog
+from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
 
-logger = botlog("reddit_wrapper", console=logging.DEBUG)
-audit = botlog("audit", console=logging.DEBUG)
+logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
+audit = botlog("audit", console_level=loglevel.DEBUG)
 watch_dict = {} # maps watched subreddits to threads
 
 backend = None
@@ -24,6 +23,7 @@ inbox_thread = None
 last_inbox_update = None
 report_cmds = None
 cache_data = None
+modlog_hist = None
 
 last_moderator_subs_check = 0
 moderator_subs_list = []
@@ -467,6 +467,17 @@ class CacheData():
     def mark_updated(self):
         self.last_check = utcnow()
 
+class modlog():
+    def __init__(self, modlog_item):
+        self._raw = modlog_item
+        self.mod_name = self._raw.mod.name
+        self.target_author = self._raw.target_author
+        self.details = self._raw.details
+        self.description = self._raw.description
+        self.subreddit_name = self._raw.subreddit
+        self.action = self._raw.action
+        self.target_permalink = self._raw.target_permalink
+
 def is_expired(name):
     """
     Check if a cached object has expired
@@ -483,6 +494,7 @@ def set_input_type(input_type):
     global subreddit_cache
     global report_cmds
     global cache_data
+    global modlog_hist
 
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
@@ -492,8 +504,10 @@ def set_input_type(input_type):
     subreddit_cache = {}
     cache_data = {}
     report_cmds = dsdict("mod", "cmds")
+    modlog_hist = dsdict("mod", "modlog")
 
 def set_credentials(credentials, user_agent):
+    audit.debug("Credentials set")
     backend.set_praw_opts(credentials, user_agent)
 
 def get_subreddit(name):
@@ -595,11 +609,25 @@ def new_report(item, author, body):
     if new_item:
         report_feeder(report(item, get_user(author), body))
 
-def watch_all(sub_func, comm_func, inbox_func, report_func):
+def new_modlog_item(item):
+    if item.id not in modlog_hist:
+        modlog_hist[item.id] = item.created_utc
+        modlog_feeder(modlog(item))
+
+    to_delete = []
+    for key, val in modlog_hist.items():
+        if utcnow() - val > timedata.SEC_IN_DAY * 7:
+            to_delete.append(key)
+
+    for key in to_delete:
+        del modlog_hist[key]
+
+def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
     global sub_feeder
     global com_feeder
     global inbox_feeder
     global report_feeder
+    global modlog_feeder
 
     # Initialize feeder classes
     sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 99)
@@ -607,6 +635,7 @@ def watch_all(sub_func, comm_func, inbox_func, report_func):
 
     inbox_feeder = inbox_func
     report_feeder = report_func
+    modlog_feeder = modlog_func
 
     logger.debug("Watching all")
     BotThread(
@@ -623,6 +652,12 @@ def watch_all(sub_func, comm_func, inbox_func, report_func):
         name="reports_mod",
         target = backend.thread_reports,
         args=(new_report,))
+
+
+    BotThread(
+        name="modlog_thread",
+        target = backend.thread_modlog,
+        args=(new_modlog_item,))
 
 def update_all_wikis(tnow):
     global wiki_update_thread
@@ -662,7 +697,8 @@ def check_inbox(tnow):
                 message.mark_read()
 
                 # Give it to the bot
-                inbox_feeder(inboxmessage(message))
+                if message.author:
+                    inbox_feeder(inboxmessage(message))
 
     global inbox_thread
     if inbox_thread and inbox_thread.isAlive():

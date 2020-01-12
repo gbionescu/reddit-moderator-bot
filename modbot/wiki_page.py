@@ -118,7 +118,19 @@ class WatchedWiki():
 def parse_wiki_content(crt_content, parser="CFG_INI"):
     if parser == "CFG_INI":
         parser = configparser.ConfigParser(allow_no_value=True, strict=False)
-        parser.read_string(crt_content)
+        try:
+            parser.read_string(crt_content)
+        except configparser.MissingSectionHeaderError:
+            # All configs should contain [Setup]
+            # If not, try prepending it
+            if "[Setup]" not in crt_content:
+                crt_content = "[Setup]\n" + crt_content
+
+        # Try again
+        try:
+            parser.read_string(crt_content)
+        except:
+            return None
 
         return parser
 

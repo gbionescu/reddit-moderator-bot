@@ -1,16 +1,15 @@
 import praw, prawcore
-import logging
 import time
 import requests
 import json
-from modbot.log import botlog
+from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata
 
 praw_credentials = None
 praw_user_agent = None
 praw_inst = {} # Dictionary of praw sessions
-logger = botlog("redditinput", console=logging.DEBUG)
-audit = botlog("audit", console=logging.DEBUG)
+logger = botlog("redditinput", console_level=loglevel.DEBUG)
+audit = botlog("audit", console_level=loglevel.DEBUG)
 
 class Thing():
     """
@@ -134,12 +133,33 @@ def thread_reports(new_report):
     Watch reports and trigger events
     """
     while True:
-        session = get_reddit("reports")
+        session = get_reddit()
         try:
-            # Feed all comments
+            # Feed all reports
             for reported_item in session.subreddit("mod").mod.reports():
                 for mod_report in reported_item.mod_reports:
                     new_report(reported_item, mod_report[1], mod_report[0])
+
+        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+            print('PRAW exception ' + str(e))
+            session = get_reddit("reports", True)
+
+        except Exception:
+            import traceback; traceback.print_exc()
+
+        # If a loop happens, sleep for a bit
+        time.sleep(5)
+
+def thread_modlog(modlog_func):
+    """
+    Watch modlog and trigger events
+    """
+    while True:
+        session = get_reddit()
+        try:
+            # Feed all modlog
+            for log in session.subreddit('mod').mod.log():
+                modlog_func(log)
 
         except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
             print('PRAW exception ' + str(e))
