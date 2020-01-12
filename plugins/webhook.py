@@ -35,7 +35,10 @@ def wiki_changed(sub, change):
         change.author.send_pm("Error parsing the updated wiki page on %s" % sub)
         return
 
-    wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    try:
+        wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    except:
+        pass
 
 wiki = hook.register_wiki_page(
     wiki_page = "webhook_streamer",
