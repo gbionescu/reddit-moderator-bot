@@ -58,7 +58,7 @@ def new_post(submission, subreddit_name):
     else:
         stype = "**Link post**"
 
-    text = "%s: %s by %s %s" % (stype, submission.title, submission.author.name, submission.shortlink)
+    text = "%s: %s by %s <%s>" % (stype, submission.title, submission.author.name, submission.shortlink)
     webhook = DiscordWebhook(wiki_config[subreddit_name].submissions, content=text)
     webhook.execute()
 
@@ -74,7 +74,7 @@ def send_modlog(item, url):
         text += "`%s`" % item.description
 
     if item.target_permalink:
-        text += "https://reddit.com" + item.target_permalink
+        text += "<https://reddit.com" + item.target_permalink + ">"
 
     webhook = DiscordWebhook(url, content=text)
     webhook.execute()
