@@ -69,6 +69,9 @@ class FakeDiscordWebhook():
     def execute(self):
         self.messages.append(self.content)
 
+    def add_embed(self, obj):
+        pass
+
 discord_webhook.DiscordWebhook = FakeDiscordWebhook
 ###############################################################################
 

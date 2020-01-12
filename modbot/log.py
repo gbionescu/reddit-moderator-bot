@@ -1,7 +1,6 @@
 import logging
 import os
 import enum
-from discord_webhook import DiscordWebhook, DiscordEmbed
 
 LOGS_FOLDER = "logs/"
 logs = {}
@@ -23,6 +22,7 @@ logmap = {
 
 class discord_handler(logging.Handler):
     def send_message(self, record, url):
+        from discord_webhook import DiscordWebhook, DiscordEmbed
 
         webhook = None
         # If not a multiline error, add embeds
