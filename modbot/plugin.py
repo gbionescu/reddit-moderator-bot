@@ -94,7 +94,12 @@ class plugin_manager():
         print("[%d] Startup done!" % utils.utcnow())
 
         # Start watching subreddits
-        watch_all(self.feed_sub, self.feed_comms, self.feed_inbox, self.feed_reports)
+        watch_all(
+            self.feed_sub,
+            self.feed_comms,
+            self.feed_inbox,
+            self.feed_reports,
+            self.feed_modlog)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -214,7 +219,6 @@ class plugin_manager():
         Feeds a new submission to the plugin framework. This function calls
         plugins that match the submission.
 
-        :param subreddit: subreddit where the submission was posted
         :param submission: submission instance
         """
 
@@ -230,8 +234,7 @@ class plugin_manager():
         Feeds a new comment to the plugin framework. This function calls
         plugins that match the comment.
 
-        :param subreddit: subreddit where the comment was posted
-        :param submission: comment instance
+        :param comment: comment instance
         """
 
         # TODO clean up watched_subs
@@ -241,6 +244,20 @@ class plugin_manager():
         disp = self.dispatchers.get(comment.subreddit_name, None)
         if disp:
             disp.run_comment(comment)
+
+    def feed_modlog(self, modlog):
+        """
+        Feeds a new modlog to the plugin framework. This function calls
+        plugins that match the comment.
+
+        :param modlog: modlog object
+        """
+
+        self.dispatchers[DISPATCH_ANY].run_modlog(modlog)
+
+        disp = self.dispatchers.get(modlog.subreddit_name, None)
+        if disp:
+            disp.run_modlog(modlog)
 
     def feed_inbox(self, message):
         """

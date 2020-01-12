@@ -1,9 +1,13 @@
 import logging
 import os
 import enum
+from discord_webhook import DiscordWebhook, DiscordEmbed
 
 LOGS_FOLDER = "logs/"
 logs = {}
+
+# Map of discord webhooks
+discord_wh = {}
 
 @enum.unique
 class loglevel(enum.Enum):
@@ -17,7 +21,39 @@ logmap = {
     loglevel.DEBUG: logging.DEBUG,
     loglevel.ERROR: logging.ERROR}
 
+class discord_handler(logging.Handler):
+    def send_message(self, record, url):
+
+        webhook = None
+        # If not a multiline error, add embeds
+        if "\n" not in record.message:
+            webhook = DiscordWebhook(url)
+            embed = DiscordEmbed()
+            embed.add_embed_field(name='File', value=record.filename, inline=True)
+            embed.add_embed_field(name='Level', value=record.levelname, inline=True)
+            embed.add_embed_field(name='Message', value=record.message, inline=True)
+
+            # add embed object to webhook
+            webhook.add_embed(embed)
+        else:
+            webhook = DiscordWebhook(url, content=record.message)
+
+        webhook.execute()
+
+    def emit(self, record):
+        if self.name in discord_wh:
+            self.send_message(record, discord_wh[self.name])
+
+def add_discord_webhook(name, url):
+    """
+    Add a discord webhook to the webhook list
+    """
+    discord_wh[name] = url
+
 def botlog(name, console_level=loglevel.INFO, file_level=loglevel.DEBUG):
+    """
+    Simple wrapper around the logger object
+    """
     if name in logs:
         return logs[name]
 
@@ -48,6 +84,13 @@ def botlog(name, console_level=loglevel.INFO, file_level=loglevel.DEBUG):
 
     logger.addHandler(ch)
     logger.addHandler(fh)
+
+    # Create discord handler with the same level as for file
+    discord_stream = discord_handler()
+    discord_stream.set_name(name)
+    discord_stream.setLevel(logging_file)
+    discord_stream.setFormatter(formatter)
+    logger.addHandler(discord_stream)
 
     logs[name] = logger
     return logger

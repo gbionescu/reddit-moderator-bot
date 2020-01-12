@@ -1,4 +1,5 @@
 import configparser
+from modbot.log import add_discord_webhook
 from modbot.plugin import plugin_manager
 from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
 
@@ -19,6 +20,7 @@ class bot():
 
         # Set PRAW options
         set_credentials(self.config.get("reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
+
         # DB credentials are optional - check if present
         db_credentials = None
         if "postgresql" in self.config.sections():
@@ -26,9 +28,14 @@ class bot():
 
         # Set bot signature when sending messages
         owner = self.config.get("owner", "owner")
-
         set_signature(
             "\n\n***\n^^This ^^message ^^was ^^sent ^^by ^^a ^^bot. ^^For ^^more ^^details [^^send ^^a ^^message](https://www.reddit.com/message/compose?to=%s&subject=Bot&message=) ^^to ^^its ^^author." % owner)
+
+        # Get the discord webhook section if set
+        if "webhook_discord" in self.config:
+            for item in self.config["webhook_discord"]:
+                # for each item in the section, add the corresponding hook
+                add_discord_webhook(item, self.config["webhook_discord"][item])
 
         self.pmgr = plugin_manager(
             self,

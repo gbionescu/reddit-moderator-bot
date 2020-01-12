@@ -16,6 +16,7 @@ class DispatchAll():
             self.callbacks_peri = []
             self.callbacks_subs = []
             self.callbacks_coms = []
+            self.callbacks_mlog = []
             self.callbacks_onstart = []
             self.callbacks = []
             self.to_call = to_call
@@ -29,6 +30,9 @@ class DispatchAll():
 
             elif func.ctype == callback_type.COM:
                 self.callbacks_coms.append(func)
+
+            elif func.ctype == callback_type.MLG:
+                self.callbacks_mlog.append(func)
 
             elif func.ctype == callback_type.PER:
                 self.callbacks_peri.append(func)
@@ -57,6 +61,9 @@ class DispatchAll():
             # Merge comments
             self.callbacks_coms.extend(cont.callbacks_coms)
 
+            # Merge modlog items
+            self.callbacks_mlog.extend(cont.callbacks_mlog)
+
             # Merge on start
             self.callbacks_onstart.extend(cont.callbacks_onstart)
 
@@ -81,12 +88,26 @@ class DispatchAll():
                         self.to_call(el, True, {**self.extra_args})
 
         def run_submission(self, submission, extra_args):
+            """
+            Run all submission items
+            """
             for cbk in self.callbacks_subs:
                 self.to_call(cbk, False, {**self.extra_args, **extra_args})
 
         def run_comment(self, comment, extra_args):
+            """
+            Run all comment items
+            """
             for cbk in self.callbacks_coms:
                 self.to_call(cbk, False, {**self.extra_args, **extra_args})
+
+        def run_modlog(self, modlog, extra_args):
+            """
+            Run all modlog items
+            """
+            for cbk in self.callbacks_mlog:
+                self.to_call(cbk, False, {**self.extra_args, **extra_args})
+
 
     def __repr__(self):
         return "generic"
@@ -212,6 +233,14 @@ class DispatchAll():
 
         self.generic_hooks.run_comment(comment, extra)
         self.enabled_wiki_hooks.run_comment(comment, extra)
+
+    def run_modlog(self, modlog):
+        extra = {
+            "modlog": modlog,
+            "subreddit_name": modlog.subreddit_name}
+
+        self.generic_hooks.run_modlog(modlog, extra)
+        self.enabled_wiki_hooks.run_modlog(modlog, extra)
 
 class DispatchSubreddit(DispatchAll):
     def __repr__(self):
