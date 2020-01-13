@@ -66,7 +66,7 @@ def send_modlog(item, url):
     text = ""
 
     if not item.target_author:
-        text = "`[%s][%s] %s` " % (item.mod.name, item.action, item.details)
+        text = "`[%s][%s] %s` " % (item.mod_name, item.action, item.details)
     else:
         text = "`[%s][%s][%s] %s` " % (item.mod_name, item.action, item.target_author, item.details)
 
