@@ -14,11 +14,12 @@ If the difference is larger than a given limit, the post is reported.
 Configurable parameters are:
 - minimum_overlap_percent - the post title and the article title must overlap at least the given amount, else it's reported (value should be given between 0 and 100)
 - domains - list of domains that should be checked
+- ignore_users - list of users to ignore
 
 Example configuration:
-[Setup]
 minimum_overlap_percent = 60
 domains = ["google.com", "blabla.co.uk"]
+ignore_users = ["AutoModerator"]
 """
 
 MAX_ACTION_TIME = timedata.SEC_IN_MIN # Maximum time to wait to take an action
@@ -29,8 +30,26 @@ wiki_config = {}
 
 class PluginCfg():
     def __init__(self, config):
+        self.domains = []
+        self.ignore_users = []
+        # Mark that a configuration is valid
+        self.valid = False
+
+        if "minimum_overlap_percent" not in config:
+            return
+
         self.minimum_overlap_percent = min(max(int(config["minimum_overlap_percent"]), 0), 100)
-        self.domains = ast.literal_eval(config["domains"])
+
+        if "domains" in config:
+            self.domains = ast.literal_eval(config["domains"])
+
+        if "ignore_users" in config:
+            raw_users = ast.literal_eval(config["ignore_users"])
+
+            for user in raw_users:
+                self.ignore_users.append(user.lower())
+
+        self.valid = True
 
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for repost_detector, subreddit %s" % sub)
@@ -43,7 +62,6 @@ def wiki_changed(sub, change):
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
                 "It does not contain the [Setup] section. Please read the documentation on how to configure it")
-        return
 
     wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
 
@@ -85,6 +103,10 @@ def new_post(submission, reddit, subreddit):
             break
 
     if not domain_valid:
+        return
+
+    # Check if the user should be ignored
+    if submission.author.name.lower() in config.ignore_users:
         return
 
     # Get the title and clean it
