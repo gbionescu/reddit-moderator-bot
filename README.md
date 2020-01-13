@@ -48,3 +48,17 @@ audit=https://discord.web.hook2
 Then, make sure that you install all the prerequisites listed in requirements.txt.
 
 Finally, you can run `python3 moderator-bot.py` to start the bot.
+
+# How it works
+
+1. When starting up, the bot will log in using the given credentials.
+
+2. On each subreddit where the bot is a moderator, it will create a wiki page named `control_panel`. If your subreddit is called `test123`, then the page will be found at `https://www.reddit.com/r/test123/wiki/control_panel`
+
+3. In the control panel you can enable/disable plugins and check the plugin status.
+
+4. To enable a plugin you need to add it to the `[Enabled Plugins]` section, by copying the plugi name. Each plugin name is found in the bottom side of the page and contains a short description, a link to its configuration page and the current status.
+
+5. Once you have copied the plugin name to the `[Enabled Plugins]` section, save the page and wait until the `Current Status` line is set to `Enabled`. This should take about 5 to 10 minutes.
+
+6. To configure the newly enabled plugin, open the page referenced by the plugin, in the `control_panel` page.
