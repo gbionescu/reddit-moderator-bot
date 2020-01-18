@@ -2,10 +2,8 @@ import ast
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import timedata, utcnow
-from modbot.wiki_page import parse_wiki_content
-from modbot.utils_title import clean_title
-from modbot.utils import calc_overlap_avg
-from modbot.utils_title import get_title
+from modbot.utils import calc_overlap_avg, parse_wiki_content
+from modbot.utils_title import get_title, clean_title
 
 plugin_documentation = """
 This plugin checks if a link post has been posted with a different title than the original one.

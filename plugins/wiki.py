@@ -6,7 +6,7 @@
 
 import sys
 from modbot import hook, utils
-from modbot.wiki_page import parse_wiki_content, prepare_wiki_content
+from modbot.utils import parse_wiki_content, prepare_wiki_content
 from modbot.log import botlog
 from modbot.hook import plugins_with_wikis
 

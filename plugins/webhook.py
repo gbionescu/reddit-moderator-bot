@@ -1,7 +1,7 @@
 from discord_webhook import DiscordWebhook
 from modbot import hook
 from modbot.log import botlog
-from modbot.wiki_page import parse_wiki_content
+from modbot.utils import parse_wiki_content
 
 plugin_documentation = """
 The plugin sends submissions or modlog items to given discord webhooks.
