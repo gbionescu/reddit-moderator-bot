@@ -17,6 +17,7 @@ def test_repost_detector(create_bot):
     minimum_word_length = 3
     minimum_nb_words = 5
     min_overlap_percent = 50
+    ignore_users = ["AutoModerator"]
     """
     sub = test.get_subreddit(TEST_SUBREDDIT)
 
@@ -28,7 +29,7 @@ def test_repost_detector(create_bot):
     test.advance_time_60s()
 
     # Create a new submissinon that we will be testing against
-    test_submission1 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
+    test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
         title="AAAA BBBB CCCC DDDD EEEE FFFF")
 
     test.advance_time_30m()
@@ -54,6 +55,13 @@ def test_repost_detector(create_bot):
         title="AAAB BBBC CCCD DDDE EEEG GGGF")
     # Give the chance to remove a post from storage due to being too old
     test.advance_time_30m()
+
+    # Test user ignore
+    test_submission4 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="automoderator",
+        title="AAAA BBBB CCCC DDDD EEEE GGGG")
+    test.advance_time_10m()
+
+    assert(len(test_submission4.reports) == 0)
 
 def test_invalid_cfg(create_bot):
     wiki_flair_posts = """

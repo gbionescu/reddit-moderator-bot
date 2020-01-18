@@ -1,3 +1,4 @@
+import ast
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import timedata, utcnow
@@ -31,12 +32,14 @@ min_overlap_percent = 50
 A practical scenario for the example above would be:
 - If the new title is "AAA BBB CC DDD EEE FF", it will be transformed into "AAA BBB DDD EEE"
 - Assuming that there is an older submission with the title "EEE DDD BBB", the new submission will be reported because it has 3 common words with the old one
+- ignore_users - list of users to ignore
 
 Recommended configuration:
 [Setup]
 minimum_word_length = 3
 minimum_nb_words = 5
 min_overlap_percent = 50
+ignore_users = ["AutoModerator"]
 """
 
 MAX_AGE = timedata.SEC_IN_DAY * 7 # Maximum age to keep posts
@@ -49,9 +52,16 @@ wiki_config = {}
 
 class RepostCfg():
     def __init__(self, config):
+        self.ignore_users = []
         self.min_overlap_percent = min(max(int(config["min_overlap_percent"]), 0), 100)
         self.minimum_nb_words = int(config["minimum_nb_words"])
         self.minimum_word_length = int(config["minimum_word_length"])
+
+        if "ignore_users" in config:
+            raw_users = ast.literal_eval(config["ignore_users"])
+
+            for user in raw_users:
+                self.ignore_users.append(user.lower())
 
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for repost_detector, subreddit %s" % sub)
@@ -84,6 +94,10 @@ def new_post(submission, storage, reddit, subreddit):
         logger.debug("[%s] Not in wiki config %s" % (submission.shortlink, subreddit.display_name))
         return
     config = wiki_config[subreddit.display_name]
+
+    # Check if the user should be ignored
+    if submission.author.name.lower() in config.ignore_users:
+        return
 
     logger.debug("[%s] New post submitted with title: %s" % (submission.shortlink, submission.title))
 
