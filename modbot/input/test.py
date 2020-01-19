@@ -82,12 +82,17 @@ from modbot.storage import set_storage_loc, clean_storage_loc
 class FakeSubreddit():
 
     class FakeWiki():
+        class FakeWikiMod():
+            def update(listed, permlevel):
+                pass
+
         def __init__(self, name, subreddit):
             self.name = name
             self.content = ""
             self.subreddit = subreddit
             self.revision_by = get_user("BigDaddy")
             self.revision_date = 0
+            self.mod = FakeSubreddit.FakeWiki.FakeWikiMod()
 
         @property
         def content_md(self):
