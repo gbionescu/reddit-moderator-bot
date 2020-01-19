@@ -5,6 +5,6 @@ base36
 pytest
 pytest-cov
 sqlalchemy
-watchdog
 psutil
 discord-webhook
+crontab

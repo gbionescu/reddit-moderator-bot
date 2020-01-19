@@ -5,7 +5,7 @@ from modbot.log import botlog
 from modbot.wiki_page import WatchedWiki
 from modbot.hook import callback_type
 from modbot.storage import dsdict
-from modbot.utils import BotThread
+from modbot.utils import BotThread, cron_next
 logger = botlog("mod_sub")
 
 storage_cache = {}
@@ -86,6 +86,18 @@ class DispatchAll():
                     if el.last_exec + int(el.period) < tnow:
                         el.set_last_exec(tnow)
                         self.to_call(el, True, {**self.extra_args})
+
+                if el.cron:
+                    # Check if we know when this should be triggered
+                    if not el.next_cron_trigger:
+                        el.next_cron_trigger = cron_next(el.cron)
+
+                    # Check if it's cron trigger time
+                    if tnow >= el.next_cron_trigger:
+                        # Call it
+                        self.to_call(el, True, {**self.extra_args})
+                        # Calculate next event
+                        el.next_cron_trigger = cron_next(el.cron)
 
         def run_submission(self, submission, extra_args):
             """

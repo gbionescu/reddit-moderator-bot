@@ -1,5 +1,6 @@
 import base36
 import datetime
+import pytz
 ###############################################################################
 # Override default thread implementation
 ###############################################################################
@@ -38,7 +39,7 @@ def advance_time(val):
     set_time(GLOBAL_TIME + val)
 
 def get_time():
-    return datetime.datetime.fromtimestamp(GLOBAL_TIME)
+    return pytz.utc.localize(datetime.datetime.fromtimestamp(GLOBAL_TIME))
 
 utils.get_utcnow = get_time
 ###############################################################################

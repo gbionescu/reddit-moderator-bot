@@ -1,6 +1,8 @@
 import datetime
 import threading
 import configparser
+import tzcron
+import pytz
 
 class BotThread():
     """
@@ -39,13 +41,13 @@ def get_utcnow():
     """
     Wraps datetime.utcnow calls
     """
-    return datetime.datetime.utcnow()
+    return pytz.utc.localize(datetime.datetime.utcnow())
 
 def utcnow():
     """
     Returns number of seconds since 1/1/1970
     """
-    return (get_utcnow() - datetime.datetime(1970, 1, 1)).total_seconds()
+    return (get_utcnow() - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
 
 def date():
     """
@@ -102,3 +104,13 @@ def prepare_wiki_content(content, indented=True):
         content = "    ".join(i + "\n" for i in lines)
 
     return content
+
+def cron_next(param):
+    # Get current date as set by the source
+    time_now = pytz.utc.localize(datetime.datetime.utcfromtimestamp(utcnow()))
+
+    # Get next trigger time
+    next_dt = next(tzcron.Schedule(param, pytz.utc, time_now))
+
+    # Return when the next trigger will happen in seconds
+    return (next_dt - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()

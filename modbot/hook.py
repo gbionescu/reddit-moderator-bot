@@ -48,6 +48,8 @@ class plugin_function():
         self.subreddit = None
         self.period = None
         self.first = None
+        self.cron = None # Cron string given as parameter
+        self.next_cron_trigger = None # Next cron trigger time
 
         # Mark whether it's a raw command hook
         self.raw = False
@@ -76,6 +78,8 @@ class plugin_function():
                     self.period = kwargs['period']
                 if 'first' in kwargs:
                     self.first = kwargs['first']
+                if 'cron' in kwargs:
+                    self.cron = kwargs['cron']
 
             if "raw" in kwargs:
                 self.raw = kwargs["raw"]
