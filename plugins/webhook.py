@@ -19,6 +19,10 @@ logger = botlog("webhook_plugin")
 # Store wiki configuration per subreddit
 wiki_config = {}
 
+replaces = {
+        "@everyone": "@ everyone",
+        "@here": "@ here"}
+
 class PluginCfg():
     def __init__(self, config):
         if "modlog" in config:
@@ -58,7 +62,13 @@ def new_post(submission, subreddit_name):
     else:
         stype = "**Link post**"
 
-    text = "%s: %s by %s <%s>" % (stype, submission.title, submission.author.name, submission.shortlink)
+    title = submission.title
+
+    for key, val in replaces.items():
+        if key in title:
+            title = title.replace(key, value)
+
+    text = "%s: %s by %s <%s>" % (stype, title, submission.author.name, submission.shortlink)
     webhook = DiscordWebhook(wiki_config[subreddit_name].submissions, content=text)
     webhook.execute()
 
