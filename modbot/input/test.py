@@ -83,7 +83,7 @@ class FakeSubreddit():
 
     class FakeWiki():
         class FakeWikiMod():
-            def update(listed, permlevel):
+            def update(self, listed, permlevel):
                 pass
 
         def __init__(self, name, subreddit):
