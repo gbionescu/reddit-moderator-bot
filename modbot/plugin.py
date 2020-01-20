@@ -221,6 +221,8 @@ class plugin_manager():
 
         :param submission: submission instance
         """
+        if not submission.author:
+            return
 
         #if self.given_watched_subs.get(submission.subreddit_name, None):
         self.dispatchers[DISPATCH_ANY].run_submission(submission)
@@ -236,6 +238,8 @@ class plugin_manager():
 
         :param comment: comment instance
         """
+        if not comment.author:
+            return
 
         # TODO clean up watched_subs
         #if self.given_watched_subs.get(comment.subreddit_name, None):

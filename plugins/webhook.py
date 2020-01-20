@@ -19,6 +19,10 @@ logger = botlog("webhook_plugin")
 # Store wiki configuration per subreddit
 wiki_config = {}
 
+replaces = {
+        "@everyone": "@ everyone",
+        "@here": "@ here"}
+
 class PluginCfg():
     def __init__(self, config):
         if "modlog" in config:
@@ -35,7 +39,10 @@ def wiki_changed(sub, change):
         change.author.send_pm("Error parsing the updated wiki page on %s" % sub)
         return
 
-    wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    try:
+        wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    except:
+        pass
 
 wiki = hook.register_wiki_page(
     wiki_page = "webhook_streamer",
@@ -55,7 +62,13 @@ def new_post(submission, subreddit_name):
     else:
         stype = "**Link post**"
 
-    text = "%s: %s by %s %s" % (stype, submission.title, submission.author.name, submission.shortlink)
+    title = submission.title
+
+    for key, val in replaces.items():
+        if key in title:
+            title = title.replace(key, value)
+
+    text = "%s: %s by %s <%s>" % (stype, title, submission.author.name, submission.shortlink)
     webhook = DiscordWebhook(wiki_config[subreddit_name].submissions, content=text)
     webhook.execute()
 
@@ -63,7 +76,7 @@ def send_modlog(item, url):
     text = ""
 
     if not item.target_author:
-        text = "`[%s][%s] %s` " % (item.mod.name, item.action, item.details)
+        text = "`[%s][%s] %s` " % (item.mod_name, item.action, item.details)
     else:
         text = "`[%s][%s][%s] %s` " % (item.mod_name, item.action, item.target_author, item.details)
 
@@ -71,7 +84,7 @@ def send_modlog(item, url):
         text += "`%s`" % item.description
 
     if item.target_permalink:
-        text += "https://reddit.com" + item.target_permalink
+        text += "<https://reddit.com" + item.target_permalink + ">"
 
     webhook = DiscordWebhook(url, content=text)
     webhook.execute()

@@ -154,6 +154,9 @@ class wiki():
         except:
             self.content = ""
 
+        # Set permissions to mod only
+        reddit_wiki.mod.update(listed=False, permlevel=2)
+
         self.subreddit_name = reddit_wiki.subreddit.display_name
         self.name = reddit_wiki.name
 

@@ -140,6 +140,47 @@ class FakeWidget():
         self.subreddit = sub
         self.mod = FakeWidgetMod()
 
+    class FakeWiki():
+        class FakeWikiMod():
+            def update(self, listed, permlevel):
+                pass
+
+        def __init__(self, name, subreddit):
+            self.name = name
+            self.content = ""
+            self.subreddit = subreddit
+            self.revision_by = get_user("BigDaddy")
+            self.revision_date = 0
+            self.mod = FakeSubreddit.FakeWiki.FakeWikiMod()
+
+        @property
+        def content_md(self):
+            return self.content
+
+        def set_content(self, content, author):
+            self.content = content
+            self.revision_by = get_user(author)
+            self.revision_date = int(utils.utcnow())
+
+    class FakeModLog():
+        id = 0
+
+        def __init__(self, author_name, target_author, action, details, description, subreddit_instance):
+            self.mod = get_user(author_name)
+            self.target_author = target_author
+            self.action = action
+            self.description = description
+            self.details = details
+            self.subreddit = subreddit_instance.display_name
+            self.target_permalink = None
+
+            # Set id
+            self.id = FakeSubreddit.FakeModLog.id
+            FakeSubreddit.FakeModLog.id += 1
+
+            # Set created
+            self.created_utc = utils.utcnow()
+
 class FakeWidgets():
 
     def __init__(self, sub):
