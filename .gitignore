@@ -11,3 +11,4 @@ storage_*/
 tests/cov*
 .coverage
 logs
+temp_files

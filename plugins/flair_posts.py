@@ -2,7 +2,7 @@ import ast
 
 from modbot import hook
 from modbot.log import botlog
-from modbot.wiki_page import parse_wiki_content
+from modbot.utils import parse_wiki_content
 from modbot.utils import utcnow, timedata
 
 plugin_documentation = """

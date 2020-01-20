@@ -1,5 +1,4 @@
 import prawcore
-import configparser
 from modbot import utils
 from modbot.log import botlog
 from modbot.storage import dsdict
@@ -114,32 +113,3 @@ class WatchedWiki():
 
     def get_change_obj(self):
         return self.WikiChange(self.sub.wiki(self.wiki_page))
-
-def parse_wiki_content(crt_content, parser="CFG_INI"):
-    if parser == "CFG_INI":
-        parser = configparser.ConfigParser(allow_no_value=True, strict=False)
-        try:
-            parser.read_string(crt_content)
-        except configparser.MissingSectionHeaderError:
-            # All configs should contain [Setup]
-            # If not, try prepending it
-            if "[Setup]" not in crt_content:
-                crt_content = "[Setup]\n" + crt_content
-
-        # Try again
-        try:
-            parser.read_string(crt_content)
-        except:
-            return None
-
-        return parser
-
-def prepare_wiki_content(content, indented=True):
-    """
-    Set wiki page content
-    """
-    if indented:
-        lines = content.split("\n")
-        content = "    ".join(i + "\n" for i in lines)
-
-    return content

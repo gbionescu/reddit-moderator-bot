@@ -2,7 +2,7 @@ import ast
 from modbot import hook
 from modbot.reddit_wrapper import get_subreddit
 from modbot.log import botlog
-from modbot.wiki_page import parse_wiki_content
+from modbot.utils import parse_wiki_content
 
 plugin_documentation = """
 Sends a modmail message when a specific word is detected in a comment or submission anywhere on reddit.

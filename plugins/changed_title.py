@@ -2,10 +2,8 @@ import ast
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import timedata, utcnow
-from modbot.wiki_page import parse_wiki_content
-from modbot.utils_title import clean_title
-from modbot.utils import calc_overlap_avg
-from modbot.utils_title import get_title
+from modbot.utils import calc_overlap_avg, parse_wiki_content
+from modbot.utils_title import get_title, clean_title
 
 plugin_documentation = """
 This plugin checks if a link post has been posted with a different title than the original one.
@@ -62,8 +60,8 @@ def wiki_changed(sub, change):
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
                 "It does not contain the [Setup] section. Please read the documentation on how to configure it")
-
-    wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    else:
+        wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
 
 wiki = hook.register_wiki_page(
     wiki_page = "changed_title",

@@ -2,7 +2,7 @@ import ast
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import timedata, utcnow
-from modbot.wiki_page import parse_wiki_content
+from modbot.utils import parse_wiki_content
 from modbot.utils_title import clean_title
 from modbot.utils import calc_overlap_avg
 
