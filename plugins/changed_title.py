@@ -60,8 +60,8 @@ def wiki_changed(sub, change):
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
                 "It does not contain the [Setup] section. Please read the documentation on how to configure it")
-
-    wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
+    else:
+        wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
 
 wiki = hook.register_wiki_page(
     wiki_page = "changed_title",
