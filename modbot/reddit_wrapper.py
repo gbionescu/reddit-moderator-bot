@@ -254,6 +254,40 @@ class subreddit():
 
         return self.wikis[name]
 
+    def stylesheet_upload_image(self, name, local_path):
+        return self._raw.stylesheet.upload(name, local_path)
+
+    def stylesheet_get_content(self):
+        return self._raw.stylesheet().stylesheet
+
+    def stylesheet_set_content(self, content):
+        return self._raw.stylesheet.update(content)
+
+    def get_sidebar_widgets(self):
+        items = []
+        for w in self._raw.widgets.sidebar:
+            items.append(widget(w))
+
+        return items
+
+class widget():
+    def __init__(self, widget):
+        self._raw = widget
+        self.name = widget.shortName
+        self.kind = widget.kind
+        self.subreddit = subreddit
+
+    def set_image(self, path, picture_link):
+        upload_url = self._raw.subreddit.widgets.mod.upload_image(path)
+
+        new_data = {}
+        new_data["width"] = 0
+        new_data["height"] = 0
+        new_data["linkUrl"] = picture_link
+        new_data["url"] = upload_url
+
+        self._raw.mod.update(data=[new_data])
+
 class user():
     """
     Class that encapsulates a PRAW user

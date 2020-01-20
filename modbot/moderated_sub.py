@@ -69,14 +69,14 @@ class DispatchAll():
 
             self.callbacks.extend(cont.callbacks)
 
-        def run_periodic(self, start_time, tnow):
+        def run_periodic(self, start_time, tnow, extra_args):
             # Go through periodic list
             for el in self.callbacks_peri:
                 # Trigger it at the 'first' interval initially
                 if el.first:
                     if start_time + int(el.first) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True, {**self.extra_args})
+                        self.to_call(el, True, {**self.extra_args, **extra_args})
 
                         # Delete the attribute so that it's not triggered again
                         el.first = None
@@ -85,7 +85,7 @@ class DispatchAll():
                     # Check if 'period' has passed since last executed
                     if el.last_exec + int(el.period) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True, {**self.extra_args})
+                        self.to_call(el, True, {**self.extra_args, **extra_args})
 
                 if el.cron:
                     # Check if we know when this should be triggered
@@ -93,9 +93,9 @@ class DispatchAll():
                         el.next_cron_trigger = cron_next(el.cron)
 
                     # Check if it's cron trigger time
-                    if tnow >= el.next_cron_trigger:
+                    if tnow > el.next_cron_trigger:
                         # Call it
-                        self.to_call(el, True, {**self.extra_args})
+                        self.to_call(el, True, {**self.extra_args, **extra_args})
                         # Calculate next event
                         el.next_cron_trigger = cron_next(el.cron)
 
@@ -147,9 +147,15 @@ class DispatchAll():
 
             # If storage was requested, retrieve the storage for subreddit/wiki_page
             if "storage" in element.args:
-                stor_name = "%s/%s" % (args["subreddit"].display_name, element.wiki.wiki_page)
+                file_name = None
+                if element.wiki:
+                    file_name = element.wiki.wiki_page
+                else:
+                    file_name = element.name
+
+                stor_name = "%s/%s" % (args["subreddit_name"], file_name)
                 if stor_name not in storage_cache:
-                    storage_cache[stor_name] = dsdict(args["subreddit"].display_name, element.wiki.wiki_page)
+                    storage_cache[stor_name] = dsdict(args["subreddit_name"], file_name)
 
                 args["storage"] = storage_cache[stor_name]
 
@@ -227,8 +233,14 @@ class DispatchAll():
         self.enabled_wiki_hooks.run_on_start(with_thread)
 
     def run_periodic(self, start_time, timestamp):
-        self.generic_hooks.run_periodic(start_time, timestamp)
-        self.enabled_wiki_hooks.run_periodic(start_time, timestamp)
+        extra = {}
+        if "subreddit" in self.plugin_args:
+            extra["subreddit_name"] = self.plugin_args["subreddit"].display_name
+        else:
+            # Add a subreddit_name parameter for non-subreddit bound periodic hooks
+            extra["subreddit_name"] = "all"
+        self.generic_hooks.run_periodic(start_time, timestamp, extra)
+        self.enabled_wiki_hooks.run_periodic(start_time, timestamp, extra)
 
     def run_submission(self, submission):
         extra = {

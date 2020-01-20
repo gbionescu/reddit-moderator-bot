@@ -76,48 +76,94 @@ class FakeDiscordWebhook():
 discord_webhook.DiscordWebhook = FakeDiscordWebhook
 ###############################################################################
 
+###############################################################################
+# Override image fetcher
+###############################################################################
+import modbot.utils_images as utils_images
+def get_picture(url, fname, timeout_sec=20, max_size=1024*1024*20):
+    return fname
+
+utils_images.get_picture = get_picture
+###############################################################################
 
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
+class FakeWiki():
+    def __init__(self, name, subreddit):
+        self.name = name
+        self.content = ""
+        self.subreddit = subreddit
+        self.revision_by = get_user("BigDaddy")
+        self.revision_date = 0
+
+    @property
+    def content_md(self):
+        return self.content
+
+    def set_content(self, content, author):
+        self.content = content
+        self.revision_by = get_user(author)
+        self.revision_date = int(utils.utcnow())
+
+class FakeModLog():
+    id = 0
+
+    def __init__(self, author_name, target_author, action, details, description, subreddit_instance):
+        self.mod = get_user(author_name)
+        self.target_author = target_author
+        self.action = action
+        self.description = description
+        self.details = details
+        self.subreddit = subreddit_instance.display_name
+        self.target_permalink = None
+
+        # Set id
+        self.id = FakeModLog.id
+        FakeModLog.id += 1
+
+        # Set created
+        self.created_utc = utils.utcnow()
+
+class FakeWidgetMod():
+    def upload_image(self, path):
+        self.path = path
+        return path
+
+    def update(self, data):
+        self.data = data
+
+class FakeWidget():
+    def __init__(self, shortName, kind, sub):
+        self.shortName = shortName
+        self.kind = kind
+        self.subreddit = sub
+        self.mod = FakeWidgetMod()
+
+class FakeWidgets():
+
+    def __init__(self, sub):
+        self.sidebar = []
+        self.mod = FakeWidgetMod()
+
+        self.sidebar.append(
+            FakeWidget("DailyLink", "Image", sub)
+        )
+
+class FakeStylesheet():
+    def __init__(self):
+        self.stylesheet = ""
+
+    def upload(self, name, local_path):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def update(self, content):
+        pass
+
 class FakeSubreddit():
-
-    class FakeWiki():
-        def __init__(self, name, subreddit):
-            self.name = name
-            self.content = ""
-            self.subreddit = subreddit
-            self.revision_by = get_user("BigDaddy")
-            self.revision_date = 0
-
-        @property
-        def content_md(self):
-            return self.content
-
-        def set_content(self, content, author):
-            self.content = content
-            self.revision_by = get_user(author)
-            self.revision_date = int(utils.utcnow())
-
-    class FakeModLog():
-        id = 0
-
-        def __init__(self, author_name, target_author, action, details, description, subreddit_instance):
-            self.mod = get_user(author_name)
-            self.target_author = target_author
-            self.action = action
-            self.description = description
-            self.details = details
-            self.subreddit = subreddit_instance.display_name
-            self.target_permalink = None
-
-            # Set id
-            self.id = FakeSubreddit.FakeModLog.id
-            FakeSubreddit.FakeModLog.id += 1
-
-            # Set created
-            self.created_utc = utils.utcnow()
-
     def __init__(self, name):
         self.name = name
         self.wikis = {}
@@ -125,6 +171,9 @@ class FakeSubreddit():
         self.subreddit_type = ["public"]
         self.sub_flairs = None
         self.modmail = []
+        self.sub_settings = {}
+        self.stylesheet = FakeStylesheet()
+        self.widgets = FakeWidgets(self)
 
     @property
     def display_name(self):
@@ -132,13 +181,13 @@ class FakeSubreddit():
 
     def get_wiki(self, name):
         if name not in self.wikis:
-            self.wikis[name] = self.FakeWiki(name, self)
+            self.wikis[name] = FakeWiki(name, self)
 
         return self.wikis[name]
 
     def edit_wiki(self, name, content, author="BigDaddy"):
         if name not in self.wikis:
-            self.wikis[name] = self.FakeWiki(name, self)
+            self.wikis[name] = FakeWiki(name, self)
 
         self.wikis[name].set_content(content, author)
 
@@ -156,7 +205,7 @@ class FakeSubreddit():
             yield get_user(mod)
 
     def add_modlog(self, author_name, target_author, modlog_type, details, description):
-        obj = FakeSubreddit.FakeModLog(author_name, target_author, modlog_type, details, description, self)
+        obj = FakeModLog(author_name, target_author, modlog_type, details, description, self)
         feed_modlog(obj)
 
 class FakeReport():
@@ -536,6 +585,10 @@ def advance_time_1h():
     for _ in range(60*60):
         do_tick()
         advance_time(1)
+
+def advance_time_24h():
+    for _ in range(24):
+        advance_time_1h()
 
 def set_moderated_subs(lst):
     global moderated_subs
