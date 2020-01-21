@@ -26,7 +26,7 @@ END_MARKER = "[](/end-pics)"
 
 class PluginCfg():
     def __init__(self, config):
-        self.items = {}
+        self.items = OrderedDict()
         for item in config:
             self.items[item] = config[item]
 
@@ -59,7 +59,7 @@ def select_picture(sub_name, cfg, storage):
     storage[sub_name] = next_item
 
     # Get name and link
-    name = sorted(list(cfg.items.keys()))[next_item]
+    name = list(cfg.items.keys())[next_item]
     link = cfg.items[name]
 
     fname = gen_fname(sub_name, link)
