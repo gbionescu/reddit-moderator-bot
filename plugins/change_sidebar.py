@@ -105,6 +105,7 @@ def set_sidebar_old_reddit(subreddit_name, choice, local_file):
 
     # Do a dummy sidebar edit (because reddit needs this apparently)
     sub.stylesheet_set_content(sub.stylesheet_get_content())
+    logger.debug("Done on old reddit")
 
 def set_sidebar_new_reddit(subreddit_name, choice, local_file):
     sub = get_subreddit(subreddit_name)
@@ -118,10 +119,13 @@ def set_sidebar_new_reddit(subreddit_name, choice, local_file):
         return
 
     pic_widget.set_image(local_file, "https://www.reddit.com/r/" + choice)
+    logger.debug("Done on new reddit")
 
 def set_sidebar(subreddit_name, cfg, storage):
     # Get the resources
     choice, local_file = select_picture(subreddit_name, cfg, storage)
+
+    logger.debug("Setting sidebar to " + choice)
 
     if not choice or not local_file:
         return
@@ -135,4 +139,5 @@ def set_sidebar(subreddit_name, cfg, storage):
 @hook.periodic(cron="0 0 * * * *")
 def do_change(storage):
     for sub_name, cfg in wiki_config.items():
+        logger.debug("Changing sidebar on " + sub_name)
         set_sidebar(sub_name, cfg, storage)
