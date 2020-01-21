@@ -155,7 +155,10 @@ class wiki():
             self.content = ""
 
         # Set permissions to mod only
-        reddit_wiki.mod.update(listed=False, permlevel=2)
+        try:
+            reddit_wiki.mod.update(listed=False, permlevel=2)
+        except:
+            pass
 
         self.subreddit_name = reddit_wiki.subreddit.display_name
         self.name = reddit_wiki.name
@@ -705,7 +708,7 @@ def update_all_wikis(tnow):
             if sub not in list(get_moderated_subs()):
                 continue
             logger.debug("Updating %s" % sub)
-            for wiki_name in sub.wikis:
+            for wiki_name in list(sub.wikis):
                 sub.wikis[wiki_name] = wiki(backend.get_wiki(sub._raw, wiki_name))
 
         logger.debug("Done wiki update")

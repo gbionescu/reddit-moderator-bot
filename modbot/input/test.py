@@ -89,6 +89,10 @@ utils_images.get_picture = get_picture
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc
 
+class FakeWikiMod():
+    def update(self, listed, permlevel):
+        pass
+
 class FakeWiki():
     def __init__(self, name, subreddit):
         self.name = name
@@ -96,6 +100,7 @@ class FakeWiki():
         self.subreddit = subreddit
         self.revision_by = get_user("BigDaddy")
         self.revision_date = 0
+        self.mod = FakeWikiMod()
 
     @property
     def content_md(self):
