@@ -57,8 +57,8 @@ Finally, you can run `python3 moderator-bot.py` to start the bot.
 
 3. In the control panel you can enable/disable plugins and check the plugin status.
 
-4. To enable a plugin you need to add it to the `[Enabled Plugins]` section, by copying the plugin name. Each plugin name is found in the bottom side of the page and contains a short description, a link to its configuration page and the current status.
+4. To enable a plugin you need to add it to the `[Enabled Plugins]` section, by copying and pasting the plugin name. Each plugin name is found in the bottom side of the page and contains a short description, a link to its configuration page and the current status for the subreddit (Enabled or Disabled).
 
 5. Once you have copied the plugin name to the `[Enabled Plugins]` section, save the page and wait until the `Current Status` line is set to `Enabled`. This should take about 5 to 10 minutes.
 
-6. To configure the newly enabled plugin, open the page referenced by the plugin, in the `control_panel` page.
+6. To configure the newly enabled plugin, open the page referenced by the plugin, in the `control_panel` page. If the page did not exist before, the bot will create it with the basic configuration.
