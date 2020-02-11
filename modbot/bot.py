@@ -1,4 +1,6 @@
 import configparser
+import os
+import sys
 from modbot.log import add_discord_webhook
 from modbot.plugin import plugin_manager
 from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
@@ -10,6 +12,10 @@ class bot():
         :param bot_config_path: path for the bot config file
         :param backend: what backend to use to get submissions/comments
         """
+
+        if not os.path.isfile(bot_config_path):
+            print("%s does not exist" % bot_config_path)
+            sys.exit(0)
 
         # Load config
         self.config = configparser.ConfigParser()
