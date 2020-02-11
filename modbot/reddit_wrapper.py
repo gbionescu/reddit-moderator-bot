@@ -5,6 +5,7 @@ import importlib
 from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
+from modbot.input.rpc_server import create_server
 
 logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
@@ -668,6 +669,7 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
     global inbox_feeder
     global report_feeder
     global modlog_feeder
+    global rpc_server
 
     # Initialize feeder classes
     sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 99)
@@ -693,11 +695,13 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
         target = backend.thread_reports,
         args=(new_report,))
 
-
     BotThread(
         name="modlog_thread",
         target = backend.thread_modlog,
         args=(new_modlog_item,))
+
+    # Create RPC server
+    rpc_server = create_server(inbox_func)
 
 def update_all_wikis(tnow):
     global wiki_update_thread
