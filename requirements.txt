@@ -8,3 +8,4 @@ sqlalchemy
 psutil
 discord-webhook
 tzcron
+grpcio
