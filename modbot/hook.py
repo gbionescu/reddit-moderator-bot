@@ -36,7 +36,7 @@ class plugin_function():
         :param ctype: plugin_function type - see callback_type enum
         :param kwargs: keyword args
         """
-        self.func = func
+        self.func = logged_call(func)
         self.ctype = ctype
         self.args = kwargs
         self.path = path
@@ -151,6 +151,13 @@ def register_wiki_page(
     plugins_with_wikis.append(obj)
 
     return obj
+
+def logged_call(func):
+    def call_func(*args, **kwargs):
+        logger.debug("Calling " + str(func))
+        func(*args, **kwargs)
+
+    return call_func
 
 def add_plugin_function(obj):
     """
