@@ -87,7 +87,7 @@ utils_images.get_picture = get_picture
 ###############################################################################
 
 from modbot.bot import bot
-from modbot.storage import set_storage_loc, clean_storage_loc
+from modbot.storage import set_storage_loc, clean_storage_loc, flush_storage
 
 class FakeWikiMod():
     def update(self, listed, permlevel):
@@ -156,7 +156,7 @@ class FakeWidget():
             self.subreddit = subreddit
             self.revision_by = get_user("BigDaddy")
             self.revision_date = 0
-            self.mod = FakeSubreddit.FakeWiki.FakeWikiMod()
+            self.mod = FakeWikiMod()
 
         @property
         def content_md(self):
@@ -180,8 +180,8 @@ class FakeWidget():
             self.target_permalink = None
 
             # Set id
-            self.id = FakeSubreddit.FakeModLog.id
-            FakeSubreddit.FakeModLog.id += 1
+            self.id = FakeModLog.id
+            FakeModLog.id += 1
 
             # Set created
             self.created_utc = utils.utcnow()
@@ -254,6 +254,13 @@ class FakeSubreddit():
         obj = FakeModLog(author_name, target_author, modlog_type, details, description, self)
         feed_modlog(obj)
 
+    def submit(self, title, selftext, send_replies):
+        return FakeSubmission(
+            subreddit_name=self.name,
+            author_name="bot",
+            title=title,
+            body=selftext)
+
 class FakeReport():
     def __init__(self, reason, thing, author=None):
         self.reason = reason
@@ -281,6 +288,13 @@ class FakeSubmission():
 
         def select(self, flair_id):
             self.set_flair_id = flair_id
+
+    class mod():
+        def __init__(self):
+            self._sticky = False
+
+        def sticky(self, state=False, bottom=False):
+            self._sticky = state
 
     crt_id = 1 # static member to keep track of the global submission ID
 
@@ -323,6 +337,8 @@ class FakeSubmission():
         if self.subreddit.sub_flairs:
             self.flairs = self.FakeFlair(self.subreddit.sub_flairs, self)
 
+        self.mod = FakeSubmission.mod()
+
         # Announce the bot that there is a new submission
         new_all_sub(self)
 
@@ -335,6 +351,10 @@ class FakeSubmission():
         if self.body:
             return True
         return False
+
+    @property
+    def stickied(self):
+        return self.mod._sticky
 
     def delete_by_author(self):
         self.author = None
@@ -355,7 +375,13 @@ class FakeSubmission():
         feed_report(obj)
 
     def add_comment(self, author, body):
-        self.comments.append(FakeComment(author, body, self))
+        comm = FakeComment(author, body, self)
+        self.comments.append(comm)
+
+        return comm
+
+    def edit(self, body):
+        self.body = body
 
 class FakeUser():
     def __repr__(self):
@@ -422,10 +448,16 @@ class FakePRAW():
 
         return cache_submissions[id]
 
+    def comment(self, id):
+        return cache_info["t1_" + id]
+
     def info(self, info_list):
         ret_items = []
         for item in info_list:
-            ret_items.append(cache_info[item])
+            try:
+                ret_items.append(cache_info[item])
+            except KeyError:
+                pass
 
         return ret_items
 
@@ -456,6 +488,9 @@ class FakeComment():
         FakeComment.id += 1
 
         new_all_com(self)
+
+    def edit(self, body):
+        self.body = body
 
 def create_bot(test_subreddit):
     global cache_reddit
@@ -492,6 +527,7 @@ def create_bot(test_subreddit):
     # Clean up storage
     clean_storage_loc("storage_test/")
     set_storage_loc("storage_test/")
+    flush_storage()
 
     # Set subreddit where the bot is a moderator
     set_moderated_subs([test_subreddit])

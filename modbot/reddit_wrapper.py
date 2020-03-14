@@ -117,6 +117,16 @@ class submission():
     def selftext(self):
         return self._raw.selftext
 
+    def edit(self, body):
+        self._raw.edit(body)
+
+    @property
+    def stickied(self):
+        return self._raw.stickied
+
+    def make_sticky(self):
+        self._raw.mod.sticky(state=True, bottom=True)
+
 class comment():
     """
     Class that encapsulates a PRAW comment
@@ -598,8 +608,24 @@ def get_moderator_users():
     cache_data["moderator_users"].mark_updated()
     return cache_data["moderator_users"].opaque
 
+def get_comment(id):
+    return comment(backend.get_reddit().comment(id=id))
+
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
+
+def post_submission_text(sub_name, title, body, sticky):
+    post_subreddit = get_subreddit(sub_name)
+    # TODO check if bot moderates sub
+    posted = post_subreddit._raw.submit(
+        title=title,
+        selftext=body,
+        send_replies=False)
+
+    if sticky:
+        posted.mod.sticky(state=True, bottom=True)
+
+    return submission(posted)
 
 def new_report(item, author, body):
     """

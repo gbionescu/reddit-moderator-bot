@@ -1,7 +1,10 @@
+import pathlib
+
+from modbot import hook
 from modbot.log import botlog
 from modbot.reddit_wrapper import get_moderator_users
-from modbot import hook
 from modbot.utils import BotThread
+from modbot.storage import get_stored_dict
 
 inbox_cmd_list = {}
 report_cmd_list = {}
@@ -14,11 +17,14 @@ class command():
     def __repr__(self):
         return "%s - %s" % (self.name, self.doc.strip())
 
-    def __init__(self, func, name, documentation, requested_args):
+    def __init__(self, func, name, documentation, requested_args, path):
         self.func = func
         self.name = name
         self.doc = documentation
         self.requested_args = requested_args
+        self.path = path
+
+        self.plugin_name = pathlib.Path(path).name.replace(".py", "")
 
 def add_inbox_command(plugin_func):
     """
@@ -34,7 +40,8 @@ def add_inbox_command(plugin_func):
         plugin_func.func,
         plugin_func.name,
         plugin_func.doc,
-        plugin_func.args)
+        plugin_func.args,
+        plugin_func.path)
 
     # Check if it should be added to the raw list or not
     if not plugin_func.raw:
@@ -56,7 +63,8 @@ def add_report_command(plugin_func):
         plugin_func.func,
         plugin_func.name,
         plugin_func.doc,
-        plugin_func.args)
+        plugin_func.args,
+        plugin_func.path)
 
     # Check if it should be added to the raw list or not
     if not plugin_func.raw:
@@ -108,10 +116,24 @@ def execute_list(item, plugin_args, cmd_list):
 
     # Check if it's a raw command
     is_raw = True
-    if text[0] == cmd_prefix:
-        is_raw = False
-        text = text[1:]
+    cmd_args = ""
 
+    cmd_split = text.split(" ", maxsplit=1)
+
+    # Check for invalid inputs
+    if len(cmd_split) == 0:
+        return
+
+    # Check for cmd_prefix as first character
+    if cmd_split[0][0] == cmd_prefix:
+        is_raw = False
+        text = cmd_split[0][1:]
+
+        if len(cmd_split) > 1:
+            # Split the rest of the command and get extra args
+            cmd_args = cmd_split[1].split(" ")
+
+    plugin_args["cmd_args"] = cmd_args
     # Run raw commands first
     for raw in raw_cmd_list.values():
         call_target(raw, item, plugin_args)
@@ -120,7 +142,11 @@ def execute_list(item, plugin_args, cmd_list):
     if not is_raw and text in cmd_list:
         # Check if the user can run this command
         right = get_rights_for_user(item.author, plugin_args["bot_owner"])
+
         if hook.has_rights_on(right, text):
+            # Once we figured out what to call, add storage
+            plugin_args["storage"] = get_stored_dict("all", cmd_list[text].plugin_name)
+
             call_target(cmd_list[text], item, plugin_args)
         else:
             logger.error("User %s tried running unprivileged command %s" % (item.author, text))

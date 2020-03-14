@@ -5,7 +5,7 @@ from datetime import timedelta
 from modbot import hook
 
 @hook.command(permission=hook.permission.OWNER)
-def system_status(message, ):
+def system_status(message):
     """
     Prints information about the system status
     """

@@ -1,6 +1,8 @@
 import enum
-from modbot.log import botlog
+import pathlib
 import inspect
+
+from modbot.log import botlog
 
 callbacks = []
 plugins_with_wikis = []
@@ -50,6 +52,8 @@ class plugin_function():
         self.first = None
         self.cron = None # Cron string given as parameter
         self.next_cron_trigger = None # Next cron trigger time
+
+        self.plugin_name = pathlib.Path(path).name.replace(".py", "")
 
         # Mark whether it's a raw command hook
         self.raw = False
@@ -241,7 +245,7 @@ def command(*args, **kwargs):
     Message command hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.CMD, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(func, callback_type.CMD, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly
