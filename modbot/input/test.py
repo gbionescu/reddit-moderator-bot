@@ -92,6 +92,8 @@ utils_images.get_picture = get_picture
 ###############################################################################
 import modbot.log as log
 log.LOGS_FOLDER = "logs_test/"
+import logging
+logging.Formatter.converter = get_time
 ###############################################################################
 
 from modbot.bot import bot
