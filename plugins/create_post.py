@@ -199,10 +199,11 @@ def check_contents(storage):
         else:
             # If unsticked, mark as unsticky and send a notification to modmail
             elem["sticky"] = False
+
+            # Sync changed elements
+            storage.sync()
+
             get_subreddit(elem["subreddit"]).send_modmail(
                 "A post has been unsticked",
                 "%s has been unsticked and no longer updated. "
                 "Send me a reply containing \"/resticky %s\"" % (submission.shortlink, submission.shortlink))
-
-
-    storage.sync()
