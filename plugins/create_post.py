@@ -25,8 +25,8 @@ def create_post(message, cmd_args, storage):
     parser = argparse.ArgumentParser(prog='create_post')
     parser.add_argument("--subreddit", help="subreddit to post in")
     parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
-    parser.add_argument("--title", help="post title")
-    parser.add_argument("--body", help="post body")
+    parser.add_argument("--title", help="post title", type=str, action='store', nargs='+')
+    parser.add_argument("--body", help="post body", type=str, action='store', nargs='*')
     parser.add_argument("--wikibody", help="post body taken from a wiki")
 
     args = parser.parse_args(cmd_args)
@@ -53,9 +53,16 @@ def create_post(message, cmd_args, storage):
         # Get the wiki content
         body = sub.wiki(wiki_name).content
 
+    title = args.title
+    if type(args.title) == list:
+        title = " ".join(args.title)
+
+    if type(body) == list:
+        body = " ".join(body)
+
     posted = post_submission_text(
         sub_name = args.subreddit,
-        title=args.title,
+        title=title,
         body=body,
         sticky=args.sticky)
 
@@ -73,7 +80,7 @@ def create_post(message, cmd_args, storage):
     new_elem["subreddit"] = args.subreddit
 
     if args.body:
-        new_elem["body"] = args.body
+        new_elem["body"] = body
 
     if args.wikibody:
         new_elem["wikibody"] = wiki_name
@@ -92,7 +99,7 @@ def clone_post(message, cmd_args, storage):
     parser.add_argument("--subreddit", help="subreddit to post in")
     parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
     parser.add_argument("--sub_link", help="post to clone")
-    parser.add_argument("--title", help="post title")
+    parser.add_argument("--title", help="post title", type=str, action='store', nargs='*')
 
     args = parser.parse_args(cmd_args)
 
@@ -103,9 +110,13 @@ def clone_post(message, cmd_args, storage):
 
     original_post = get_submission(args.sub_link)
 
+    title = args.title
+    if type(args.title) == list:
+        title = " ".join(args.title)
+
     posted = post_submission_text(
         sub_name = args.subreddit,
-        title=args.title,
+        title=title,
         body=original_post.selftext,
         sticky=args.sticky)
 

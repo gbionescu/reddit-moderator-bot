@@ -11,7 +11,7 @@ def test_create_post(create_bot):
     # Test basic commands
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/create_post --subreddit=ble --sticky --title=test --body='asd\nxxx'")
+        "/create_post --subreddit=ble --sticky --title test1 test2 test3 --body zzz ddd")
     test.advance_time_10m()
 
     _, body = test.get_user("mod1").inbox[-1]
