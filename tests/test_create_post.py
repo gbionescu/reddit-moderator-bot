@@ -118,3 +118,43 @@ def test_clone_post(create_bot):
 
     # Check for content
     assert "asd5678" in target_sub.body
+
+def test_create_from_wiki(create_bot):
+    content = """
+    content
+
+    multi
+
+    line
+    """
+    sub = test.get_subreddit(TEST_SUBREDDIT)
+
+    # Update control panel and plugin wiki
+    sub.edit_wiki("wiki123", content)
+
+    test.get_reddit().inbox.add_message(
+        "mod1",
+        "/create_post --subreddit=%s --sticky --title=test --wikibody=wiki123" % TEST_SUBREDDIT)
+    test.advance_time_10m()
+
+    _, body = test.get_user("mod1").inbox[-1]
+
+    # Get first line
+    fline = body.split("\n")[0]
+
+    # Get id
+    target_sub = None
+    id = fline.split(" ")[1]
+    for s in test.cache_submissions.values():
+        if s.shortlink == id:
+            target_sub = s
+
+    # Check for a word
+    assert "multi" in target_sub.body
+
+    # Edit the wiki
+    sub.edit_wiki("wiki123", content + "XXX")
+
+    # Check it again
+    test.advance_time_10m()
+    assert "XXX" in target_sub.body
