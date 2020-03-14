@@ -1,6 +1,9 @@
 import argparse
 from modbot import hook
+from modbot.log import botlog
 from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit
+
+logger = botlog("create_post")
 
 def create_new_elem():
     new_elem = {}
@@ -9,6 +12,7 @@ def create_new_elem():
     new_elem["sticky"] = False
     new_elem["subreddit"] = ""
     new_elem["clone_source"] = ""
+    new_elem["body"] = ""
 
     return new_elem
 
@@ -48,6 +52,9 @@ def create_post(message, cmd_args, storage):
     else:
         new_elem["sticky"] = False
     new_elem["subreddit"] = args.subreddit
+    new_elem["body"] = args.body
+
+    logger.debug("Created a new post at %s" % posted.shortlink)
 
     storage["posts"].append(new_elem)
     storage.sync()
@@ -89,6 +96,8 @@ def clone_post(message, cmd_args, storage):
         new_elem["sticky"] = False
     new_elem["subreddit"] = args.subreddit
     new_elem["clone_source"] = original_post.shortlink
+
+    logger.debug("Created a new post at %s" % posted.shortlink)
 
     storage["posts"].append(new_elem)
     storage.sync()
@@ -251,12 +260,16 @@ def check_contents(storage):
                 "Send me a reply containing \"/resticky %s\"" % (submission.shortlink, submission.shortlink))
 
 def gather_body(submission, stored):
+    logger.debug("[%s] gathering body" % stored["shortlink"])
+
     all_body = ""
     if not stored["clone_source"]:
-        all_body = submission.selftext
+        all_body = stored["body"]
+        logger.debug("[%s] it's a self text" % stored["shortlink"])
     else:
         original_post = get_submission(stored["clone_source"])
         all_body = original_post.selftext
+        logger.debug("[%s] it's a clone" % stored["shortlink"])
 
     for comment_id in stored["integrated_comms"]:
         comm = get_comment(comment_id)
