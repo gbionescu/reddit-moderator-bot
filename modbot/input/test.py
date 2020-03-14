@@ -86,6 +86,16 @@ def get_picture(url, fname, timeout_sec=20, max_size=1024*1024*20):
 utils_images.get_picture = get_picture
 ###############################################################################
 
+
+###############################################################################
+# Override LOG folder
+###############################################################################
+import modbot.log as log
+log.LOGS_FOLDER = "logs_test/"
+import logging
+logging.Formatter.converter = get_time
+###############################################################################
+
 from modbot.bot import bot
 from modbot.storage import set_storage_loc, clean_storage_loc, flush_storage
 
