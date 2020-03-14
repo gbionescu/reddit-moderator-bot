@@ -75,9 +75,12 @@ class submission():
 
     @property
     def author(self):
-        if self._raw.author:
-            return user(self._raw.author)
-        else:
+        try:
+            if self._raw.author:
+                return user(self._raw.author)
+            else:
+                return None
+        except:
             return None
 
     @property
