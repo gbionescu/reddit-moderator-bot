@@ -13,6 +13,7 @@ def create_new_elem():
     new_elem["subreddit"] = ""
     new_elem["clone_source"] = ""
     new_elem["body"] = ""
+    new_elem["wikibody"] = ""
 
     return new_elem
 
@@ -26,18 +27,36 @@ def create_post(message, cmd_args, storage):
     parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
     parser.add_argument("--title", help="post title")
     parser.add_argument("--body", help="post body")
+    parser.add_argument("--wikibody", help="post body taken from a wiki")
 
     args = parser.parse_args(cmd_args)
 
     if not args.subreddit or \
-        not args.title or \
-        not args.body:
+        not args.title:
         message.author.send_pm("Invalid parameters", parser.print_help())
+
+    if not args.body and not args.wikibody:
+        message.author.send_pm("Needs either --body or --wikibody", parser.print_help())
+
+    # Check the body type
+    body = ""
+    wiki_name = ""
+    if args.body:
+        body = args.body
+    elif args.wikibody:
+        # Get the subreddit
+        sub = get_subreddit(args.subreddit)
+
+        # Get the wiki name
+        wiki_name = args.wikibody.replace("/", " ").strip().split(" ")[-1]
+
+        # Get the wiki content
+        body = sub.wiki(wiki_name).content
 
     posted = post_submission_text(
         sub_name = args.subreddit,
         title=args.title,
-        body=args.body,
+        body=body,
         sticky=args.sticky)
 
     message.author.send_pm("Create post result", "Done: %s" % posted.shortlink)
@@ -52,7 +71,12 @@ def create_post(message, cmd_args, storage):
     else:
         new_elem["sticky"] = False
     new_elem["subreddit"] = args.subreddit
-    new_elem["body"] = args.body
+
+    if args.body:
+        new_elem["body"] = args.body
+
+    if args.wikibody:
+        new_elem["wikibody"] = wiki_name
 
     logger.debug("Created a new post at %s" % posted.shortlink)
 
@@ -263,13 +287,19 @@ def gather_body(submission, stored):
     logger.debug("[%s] gathering body" % stored["shortlink"])
 
     all_body = ""
-    if not stored["clone_source"]:
+    if stored["body"]:
         all_body = stored["body"]
         logger.debug("[%s] it's a self text" % stored["shortlink"])
-    else:
+    elif stored["clone_source"]:
         original_post = get_submission(stored["clone_source"])
         all_body = original_post.selftext
         logger.debug("[%s] it's a clone" % stored["shortlink"])
+    elif stored["wikibody"]:
+        # Get the subreddit
+        sub = get_subreddit(stored["subreddit"])
+
+        # Get the wiki content
+        all_body = sub.wiki(stored["wikibody"]).content
 
     for comment_id in stored["integrated_comms"]:
         comm = get_comment(comment_id)
