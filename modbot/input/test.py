@@ -522,6 +522,9 @@ def create_bot(test_subreddit):
     moderated_subs = None
     moderator_for_sub = {}
 
+    # Reset time
+    set_time(0)
+
     """
     Bring up bot logic
     """
