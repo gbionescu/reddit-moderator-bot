@@ -281,7 +281,7 @@ def check_contents(storage):
             get_subreddit(elem["subreddit"]).send_modmail(
                 "A post has been unsticked",
                 "%s has been unsticked and no longer updated. "
-                "Send me a reply containing \"/resticky %s\"" % (submission.shortlink, submission.shortlink))
+                "Send me a reply containing \"/resticky --sub_link=%s\" to autoupdate it again" % (submission.shortlink, submission.shortlink))
 
 def gather_body(submission, stored):
     logger.debug("[%s] gathering body" % stored["shortlink"])
@@ -305,6 +305,6 @@ def gather_body(submission, stored):
         comm = get_comment(comment_id)
         all_body += "\n***\n"
         all_body += comm.body
-        all_body += "\nContributor: /u/%s, [source](%s)" % (str(comm.author), comm.permalink)
+        all_body += "\n\nContributor: /u/%s, [source](%s)" % (str(comm.author), comm.permalink)
 
     submission.edit(all_body)
