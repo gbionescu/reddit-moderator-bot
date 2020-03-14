@@ -409,7 +409,8 @@ def per(subreddit, storage, reddit):
     # Clean up threads that are to be removed
     for post in to_remove:
         try:
-            del storage["subs"][post["shortlink"]]
+            if post["shortlink"] in storage["subs"]:
+                del storage["subs"][post["shortlink"]]
         except:
             pass
     if len(to_remove) > 0:

@@ -5,6 +5,7 @@ import importlib
 from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata, BotThread
 from modbot.storage import dsdict
+from modbot.input.rpc_server import create_server
 
 logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
@@ -118,6 +119,16 @@ class submission():
     @property
     def selftext(self):
         return self._raw.selftext
+
+    def edit(self, body):
+        self._raw.edit(body)
+
+    @property
+    def stickied(self):
+        return self._raw.stickied
+
+    def make_sticky(self):
+        self._raw.mod.sticky(state=True, bottom=True)
 
 class comment():
     """
@@ -600,8 +611,24 @@ def get_moderator_users():
     cache_data["moderator_users"].mark_updated()
     return cache_data["moderator_users"].opaque
 
+def get_comment(id):
+    return comment(backend.get_reddit().comment(id=id))
+
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
+
+def post_submission_text(sub_name, title, body, sticky):
+    post_subreddit = get_subreddit(sub_name)
+    # TODO check if bot moderates sub
+    posted = post_subreddit._raw.submit(
+        title=title,
+        selftext=body,
+        send_replies=False)
+
+    if sticky:
+        posted.mod.sticky(state=True, bottom=True)
+
+    return submission(posted)
 
 def new_report(item, author, body):
     """
@@ -671,6 +698,7 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
     global inbox_feeder
     global report_feeder
     global modlog_feeder
+    global rpc_server
 
     # Initialize feeder classes
     sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 99)
@@ -696,11 +724,13 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
         target = backend.thread_reports,
         args=(new_report,))
 
-
     BotThread(
         name="modlog_thread",
         target = backend.thread_modlog,
         args=(new_modlog_item,))
+
+    # Create RPC server
+    rpc_server = create_server(inbox_func)
 
 def update_all_wikis(tnow):
     global wiki_update_thread
