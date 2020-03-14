@@ -4,11 +4,9 @@ from modbot import utils
 from modbot.log import botlog
 from modbot.wiki_page import WatchedWiki
 from modbot.hook import callback_type
-from modbot.storage import dsdict
+from modbot.storage import get_stored_dict
 from modbot.utils import BotThread, cron_next
 logger = botlog("mod_sub")
-
-storage_cache = {}
 
 class DispatchAll():
     class HookContainer():
@@ -151,13 +149,9 @@ class DispatchAll():
                 if element.wiki:
                     file_name = element.wiki.wiki_page
                 else:
-                    file_name = element.name
+                    file_name = element.plugin_name
 
-                stor_name = "%s/%s" % (args["subreddit_name"], file_name)
-                if stor_name not in storage_cache:
-                    storage_cache[stor_name] = dsdict(args["subreddit_name"], file_name)
-
-                args["storage"] = storage_cache[stor_name]
+                args["storage"] = get_stored_dict(args["subreddit_name"], file_name)
 
             for farg in element.args:
                 if farg in args.keys():

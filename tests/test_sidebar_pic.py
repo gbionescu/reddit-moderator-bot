@@ -33,6 +33,7 @@ def test_sidebar_pic(create_bot):
     sub.edit_wiki("change_sidebar", wiki_content)
     # Set fake sidebar
     sub.edit_wiki("config/sidebar", sub_decr)
+    test.advance_time_10m()
 
     # Jump in time 23 hours and simulate one
     test.advance_time(60 * 60 * 23)

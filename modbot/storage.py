@@ -14,6 +14,16 @@ logger = botlog(
 
 DS_LOC = "storage_data/"
 
+dsdict_cache = {}
+
+def get_stored_dict(parent, name):
+    path = "%s/%s" % (parent, name)
+
+    if path not in dsdict_cache:
+        dsdict_cache[path] = dsdict(parent, name)
+
+    return dsdict_cache[path]
+
 class dstype():
     def __init__(self, parent, name):
         if not name.endswith(".json"):
@@ -135,3 +145,7 @@ def clean_storage_loc(location):
         shutil.rmtree(location)
     except:
         pass
+
+def flush_storage():
+    global dsdict_cache
+    dsdict_cache = {}
