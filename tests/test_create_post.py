@@ -14,7 +14,7 @@ def test_create_post(create_bot):
         "/create_post --subreddit=ble --sticky --title=test --body='asd\nxxx'")
     test.advance_time_10m()
 
-    _, body = test.get_user("mod1").inbox[0]
+    _, body = test.get_user("mod1").inbox[-1]
 
     # Get first line
     fline = body.split("\n")[0]
@@ -82,3 +82,39 @@ def test_create_post(create_bot):
     # Check if it was updated
     test.advance_time_10m()
     assert "qwe3" in target_sub.body
+
+def test_clone_post(create_bot):
+    # Test cloned post
+    test_submission = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="JohnDoe1",
+        title="title_test",
+        body="asd1234")
+
+    test.get_reddit().inbox.add_message(
+        "mod1",
+        "/clone_post --subreddit=ble --sticky --title=test2 --sub_link=%s" % test_submission.shortlink)
+    test.advance_time_10m()
+
+    _, body = test.get_user("mod1").inbox[-1]
+
+    # Get first line
+    fline = body.split("\n")[0]
+
+    # Get id
+    target_sub = None
+    id = fline.split(" ")[1]
+    for sub in test.cache_submissions.values():
+        if sub.shortlink == id:
+            target_sub = sub
+
+    # Check for content
+    assert "asd1234" in target_sub.body
+
+    # Edit the original body
+    test_submission.edit("asd5678")
+
+    test.advance_time_10m()
+
+    # Check for content
+    assert "asd5678" in target_sub.body

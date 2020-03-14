@@ -382,6 +382,7 @@ class FakeSubmission():
 
     def edit(self, body):
         self.body = body
+        self.selftext = body
 
 class FakeUser():
     def __repr__(self):

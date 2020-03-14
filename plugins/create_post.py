@@ -2,6 +2,16 @@ import argparse
 from modbot import hook
 from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit
 
+def create_new_elem():
+    new_elem = {}
+    new_elem["shortlink"] = ""
+    new_elem["integrated_comms"] = []
+    new_elem["sticky"] = False
+    new_elem["subreddit"] = ""
+    new_elem["clone_source"] = ""
+
+    return new_elem
+
 @hook.command(permission=hook.permission.MOD)
 def create_post(message, cmd_args, storage):
     """
@@ -31,9 +41,8 @@ def create_post(message, cmd_args, storage):
     if "posts" not in storage:
         storage["posts"] = []
 
-    new_elem = {}
+    new_elem = create_new_elem()
     new_elem["shortlink"] = posted.shortlink
-    new_elem["integrated_comms"] = []
     if args.sticky:
         new_elem["sticky"] = True
     else:
@@ -43,16 +52,49 @@ def create_post(message, cmd_args, storage):
     storage["posts"].append(new_elem)
     storage.sync()
 
-def gather_body(submission, stored):
-    all_body = submission.selftext
+@hook.command(permission=hook.permission.MOD)
+def clone_post(message, cmd_args, storage):
+    """
+    Clone a post and keep its body in sync with the original
+    """
+    parser = argparse.ArgumentParser(prog='create_post')
+    parser.add_argument("--subreddit", help="subreddit to post in")
+    parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
+    parser.add_argument("--sub_link", help="post to clone")
+    parser.add_argument("--title", help="post title")
 
-    for comment_id in stored["integrated_comms"]:
-        comm = get_comment(comment_id)
-        all_body += "\n***\n"
-        all_body += comm.body
-        all_body += "\nContributor: /u/%s, [source](%s)" % (str(comm.author), comm.permalink)
+    args = parser.parse_args(cmd_args)
 
-    submission.edit(all_body)
+    if not args.subreddit or \
+        not args.title or \
+        not args.sub_link:
+        message.author.send_pm("Invalid parameters", parser.print_help())
+
+    original_post = get_submission(args.sub_link)
+
+    posted = post_submission_text(
+        sub_name = args.subreddit,
+        title=args.title,
+        body=original_post.selftext,
+        sticky=args.sticky)
+
+    if "posts" not in storage:
+        storage["posts"] = []
+
+    new_elem = create_new_elem()
+    new_elem["shortlink"] = posted.shortlink
+    if args.sticky:
+        new_elem["sticky"] = True
+    else:
+        new_elem["sticky"] = False
+    new_elem["subreddit"] = args.subreddit
+    new_elem["clone_source"] = original_post.shortlink
+
+    storage["posts"].append(new_elem)
+    storage.sync()
+
+    message.author.send_pm("Create post result", "Done: %s" % posted.shortlink)
+
 
 @hook.command(permission=hook.permission.MOD)
 def integrate_comment(message, cmd_args, storage):
@@ -207,3 +249,19 @@ def check_contents(storage):
                 "A post has been unsticked",
                 "%s has been unsticked and no longer updated. "
                 "Send me a reply containing \"/resticky %s\"" % (submission.shortlink, submission.shortlink))
+
+def gather_body(submission, stored):
+    all_body = ""
+    if not stored["clone_source"]:
+        all_body = submission.selftext
+    else:
+        original_post = get_submission(stored["clone_source"])
+        all_body = original_post.selftext
+
+    for comment_id in stored["integrated_comms"]:
+        comm = get_comment(comment_id)
+        all_body += "\n***\n"
+        all_body += comm.body
+        all_body += "\nContributor: /u/%s, [source](%s)" % (str(comm.author), comm.permalink)
+
+    submission.edit(all_body)
