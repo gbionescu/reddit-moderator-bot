@@ -272,16 +272,11 @@ def check_contents(storage):
             # If still sticky, update it
             gather_body(submission, elem)
         else:
-            # If unsticked, mark as unsticky and send a notification to modmail
+            # If unsticked, mark as unsticky
             elem["sticky"] = False
 
             # Sync changed elements
             storage.sync()
-
-            get_subreddit(elem["subreddit"]).send_modmail(
-                "A post has been unsticked",
-                "%s has been unsticked and no longer updated. "
-                "Send me a reply containing \"/resticky --sub_link=%s\" to autoupdate it again" % (submission.shortlink, submission.shortlink))
 
 def gather_body(submission, stored):
     logger.debug("[%s] gathering body" % stored["shortlink"])
