@@ -43,9 +43,13 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     content += "# A plugin can be enabled by adding it in the section below\n"
     content += "[Enabled Plugins]\n"
 
+    if not crt_content:
+        logger.error("Could not get control panel for %s. Aborting update" % sub_name)
+        return
+
     enabled_plugins = []
     # Add the existing enabled plugins
-    if crt_content and "Enabled Plugins" in crt_content:
+    if "Enabled Plugins" in crt_content:
         for plugin in crt_content["Enabled Plugins"]:
             content += "%s\n" % plugin
             logger.debug("[%s] Enabling plugin %s" % (sub_name, plugin))

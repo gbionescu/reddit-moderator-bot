@@ -318,7 +318,7 @@ class DispatchSubreddit(DispatchAll):
         except:
             import traceback
             traceback.print_exc()
-            return ""
+            return None
         return self.crt_control_panel
 
     def set_control_panel(self, content):
