@@ -1,7 +1,9 @@
 # Dummy input source
 
+
 def set_praw_opts(credentials, user_agent):
     pass
+
 
 def get_reddit(name="default", force_create=False):
     # TODO
@@ -10,6 +12,7 @@ def get_reddit(name="default", force_create=False):
     class reddit():
         class ruser():
             name = "_"
+
             def moderator_subreddits(self):
                 return []
 
@@ -34,23 +37,30 @@ def get_reddit(name="default", force_create=False):
 
     return reddit()
 
+
 def thread_sub(feeder):
     pass
+
 
 def thread_comm(feeder):
     pass
 
+
 def thread_reports(new_report):
     pass
+
 
 def thread_modlog(modlog_func):
     pass
 
+
 def get_wiki(subreddit, wiki_name):
     pass
 
+
 def edit_wiki(subreddit, wiki_name, content):
     pass
+
 
 def tick(period, trigger):
     pass

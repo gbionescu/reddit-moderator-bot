@@ -7,6 +7,7 @@ from modbot.storage import dsdict
 
 import pytest
 
+
 def test_stor():
     to_wait = []
 
@@ -25,9 +26,9 @@ def test_stor():
         for thr in range(nb_threads):
             print("Launching thread %d", thr)
             test_th = threading.Thread(
-                    name="pmgr_thread",
-                    target=do_test,
-                    args=(test_dict, cycles))
+                name="pmgr_thread",
+                target=do_test,
+                args=(test_dict, cycles))
 
             to_wait.append(test_th)
 

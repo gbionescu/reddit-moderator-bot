@@ -42,18 +42,20 @@ min_overlap_percent = 50
 ignore_users = ["AutoModerator"]
 """
 
-MAX_AGE = timedata.SEC_IN_DAY * 7 # Maximum age to keep posts
-MAX_ACTION_TIME = timedata.SEC_IN_MIN # Maximum time to wait to take an action
+MAX_AGE = timedata.SEC_IN_DAY * 7  # Maximum age to keep posts
+MAX_ACTION_TIME = timedata.SEC_IN_MIN  # Maximum time to wait to take an action
 
 logger = botlog("repost_detector")
 
 # Store wiki configuration per subreddit
 wiki_config = {}
 
+
 class RepostCfg():
     def __init__(self, config):
         self.ignore_users = []
-        self.min_overlap_percent = min(max(int(config["min_overlap_percent"]), 0), 100)
+        self.min_overlap_percent = min(
+            max(int(config["min_overlap_percent"]), 0), 100)
         self.minimum_nb_words = int(config["minimum_nb_words"])
         self.minimum_word_length = int(config["minimum_word_length"])
 
@@ -62,6 +64,7 @@ class RepostCfg():
 
             for user in raw_users:
                 self.ignore_users.append(user.lower())
+
 
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for repost_detector, subreddit %s" % sub)
@@ -73,16 +76,18 @@ def wiki_changed(sub, change):
         # If it's a recent edit, notify the author
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
-                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
+                                  "It does not contain the [Setup] section. Please read the documentation on how to configure it")
         return
 
     wiki_config[sub.display_name] = RepostCfg(cont["Setup"])
 
+
 wiki = hook.register_wiki_page(
-    wiki_page = "repost_detector",
-    description = "Search for reposted articles and check for editorialized posts",
-    documentation = plugin_documentation,
-    wiki_change_notifier = wiki_changed)
+    wiki_page="repost_detector",
+    description="Search for reposted articles and check for editorialized posts",
+    documentation=plugin_documentation,
+    wiki_change_notifier=wiki_changed)
+
 
 @hook.submission(wiki=wiki)
 def new_post(submission, storage, reddit, subreddit):
@@ -91,7 +96,8 @@ def new_post(submission, storage, reddit, subreddit):
 
     # Get wiki configuration
     if subreddit.display_name not in wiki_config:
-        logger.debug("[%s] Not in wiki config %s" % (submission.shortlink, subreddit.display_name))
+        logger.debug("[%s] Not in wiki config %s" %
+                     (submission.shortlink, subreddit.display_name))
         return
     config = wiki_config[subreddit.display_name]
 
@@ -99,14 +105,16 @@ def new_post(submission, storage, reddit, subreddit):
     if submission.author.name.lower() in config.ignore_users:
         return
 
-    logger.debug("[%s] New post submitted with title: %s" % (submission.shortlink, submission.title))
+    logger.debug("[%s] New post submitted with title: %s" %
+                 (submission.shortlink, submission.title))
 
     # Get current time
     tnow = utcnow()
 
     # Don't take action on old posts
     if tnow - submission.created_utc > MAX_ACTION_TIME:
-        logger.debug("[%s] Skipped because it's too old" % (submission.shortlink))
+        logger.debug("[%s] Skipped because it's too old" %
+                     (submission.shortlink))
         return
 
     if submission.shortlink in storage["subs"]:
@@ -123,11 +131,13 @@ def new_post(submission, storage, reddit, subreddit):
     # Check against old titles
     for post in storage["subs"].values():
         # Calculate two-way overlap factor
-        logger.debug("[%s] Checking\n\t%s\n\t%s" % (submission.shortlink, cleaned_title, post["filtered"]))
+        logger.debug("[%s] Checking\n\t%s\n\t%s" %
+                     (submission.shortlink, cleaned_title, post["filtered"]))
 
         overlap_factor = calc_overlap_avg(cleaned_title, post["filtered"])
 
-        logger.debug("[%s] Calculated repost factor %f" % (submission.shortlink, overlap_factor))
+        logger.debug("[%s] Calculated repost factor %f" %
+                     (submission.shortlink, overlap_factor))
         if overlap_factor > config.min_overlap_percent:
             post_sub = reddit.get_submission(url=post["shortlink"])
             # Did the author remove it?
@@ -138,8 +148,9 @@ def new_post(submission, storage, reddit, subreddit):
                 continue
 
             logger.debug("[%s] Reporting as dupe for %s / factor %f" %
-                (submission.shortlink, post["shortlink"], overlap_factor))
-            submission.report("Possible repost of %s, with a factor of %.2f%%" % (post["shortlink"], overlap_factor))
+                         (submission.shortlink, post["shortlink"], overlap_factor))
+            submission.report("Possible repost of %s, with a factor of %.2f%%" % (
+                post["shortlink"], overlap_factor))
             return
 
     # Add new element

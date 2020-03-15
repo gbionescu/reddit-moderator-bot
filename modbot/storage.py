@@ -16,6 +16,7 @@ DS_LOC = "storage_data/"
 
 dsdict_cache = {}
 
+
 def get_stored_dict(parent, name):
     path = "%s/%s" % (parent, name)
 
@@ -23,6 +24,7 @@ def get_stored_dict(parent, name):
         dsdict_cache[path] = dsdict(parent, name)
 
     return dsdict_cache[path]
+
 
 class dstype():
     def __init__(self, parent, name):
@@ -69,6 +71,7 @@ class dstype():
             logger.error("Could not load " + self.location)
             return None
 
+
 class dsobj():
     def __init__(self, parent, name):
         self._data = dsdict(parent, name)
@@ -89,6 +92,7 @@ class dsobj():
         else:
             self._data[name] = value
 
+
 class dsdict(dstype, collections.UserDict):
     def __init__(self, parent, name):
         collections.UserDict.__init__(self)
@@ -101,6 +105,7 @@ class dsdict(dstype, collections.UserDict):
         collections.UserDict.__setitem__(self, key, value)
         self.sync()
         return self.data
+
 
 def do_sync(obj, name, backup_name):
     @lockutils.synchronized(name)
@@ -121,7 +126,8 @@ def do_sync(obj, name, backup_name):
         except:
             print("Sync error when syncing %s" % name)
             logger.debug("Sync error when syncing %s" % name)
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
         logger.debug("Open file")
 
@@ -134,17 +140,20 @@ def do_sync(obj, name, backup_name):
 
     do_blocking_sync(obj, name, backup_name)
 
+
 def set_storage_loc(location):
     global DS_LOC
     DS_LOC = location
+
 
 def clean_storage_loc(location):
     import shutil
 
     try:
-        shutil.rmtree(location)
+        shutil.rmtree(location, ignore_errors=True)
     except:
         pass
+
 
 def flush_storage():
     global dsdict_cache

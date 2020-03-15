@@ -5,6 +5,7 @@ from modbot.reddit_wrapper import post_submission_text, get_submission, get_comm
 
 logger = botlog("create_post")
 
+
 def create_new_elem():
     new_elem = {}
     new_elem["shortlink"] = ""
@@ -17,6 +18,7 @@ def create_new_elem():
 
     return new_elem
 
+
 @hook.command(permission=hook.permission.MOD)
 def create_post(message, cmd_args, storage):
     """
@@ -24,19 +26,23 @@ def create_post(message, cmd_args, storage):
     """
     parser = argparse.ArgumentParser(prog='create_post')
     parser.add_argument("--subreddit", help="subreddit to post in")
-    parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
-    parser.add_argument("--title", help="post title", type=str, action='store', nargs='+')
-    parser.add_argument("--body", help="post body", type=str, action='store', nargs='*')
+    parser.add_argument(
+        "--sticky", help="sticky - specify to sticky", action='store_true')
+    parser.add_argument("--title", help="post title",
+                        type=str, action='store', nargs='+')
+    parser.add_argument("--body", help="post body",
+                        type=str, action='store', nargs='*')
     parser.add_argument("--wikibody", help="post body taken from a wiki")
 
     args = parser.parse_args(cmd_args)
 
     if not args.subreddit or \
-        not args.title:
+            not args.title:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     if not args.body and not args.wikibody:
-        message.author.send_pm("Needs either --body or --wikibody", parser.print_help())
+        message.author.send_pm(
+            "Needs either --body or --wikibody", parser.print_help())
 
     # Check the body type
     body = ""
@@ -61,7 +67,7 @@ def create_post(message, cmd_args, storage):
         body = " ".join(body)
 
     posted = post_submission_text(
-        sub_name = args.subreddit,
+        sub_name=args.subreddit,
         title=title,
         body=body,
         sticky=args.sticky)
@@ -90,6 +96,7 @@ def create_post(message, cmd_args, storage):
     storage["posts"].append(new_elem)
     storage.sync()
 
+
 @hook.command(permission=hook.permission.MOD)
 def clone_post(message, cmd_args, storage):
     """
@@ -97,15 +104,17 @@ def clone_post(message, cmd_args, storage):
     """
     parser = argparse.ArgumentParser(prog='create_post')
     parser.add_argument("--subreddit", help="subreddit to post in")
-    parser.add_argument("--sticky", help="sticky - specify to sticky", action='store_true')
+    parser.add_argument(
+        "--sticky", help="sticky - specify to sticky", action='store_true')
     parser.add_argument("--sub_link", help="post to clone")
-    parser.add_argument("--title", help="post title", type=str, action='store', nargs='*')
+    parser.add_argument("--title", help="post title",
+                        type=str, action='store', nargs='*')
 
     args = parser.parse_args(cmd_args)
 
     if not args.subreddit or \
-        not args.title or \
-        not args.sub_link:
+            not args.title or \
+            not args.sub_link:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     original_post = get_submission(args.sub_link)
@@ -115,7 +124,7 @@ def clone_post(message, cmd_args, storage):
         title = " ".join(args.title)
 
     posted = post_submission_text(
-        sub_name = args.subreddit,
+        sub_name=args.subreddit,
         title=title,
         body=original_post.selftext,
         sticky=args.sticky)
@@ -152,7 +161,7 @@ def integrate_comment(message, cmd_args, storage):
 
     # Check parameters
     if not args.sub_link or \
-        not args.comment_link:
+            not args.comment_link:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     if "posts" not in storage:
@@ -181,12 +190,15 @@ def integrate_comment(message, cmd_args, storage):
     # Check if it's in the list already
     if comm_id not in elem["integrated_comms"]:
         elem["integrated_comms"].append(comm_id)
-        message.author.send_pm("Commend ID added to watch", "Will watch %s in %s" % (comm_id, sub.shortlink))
+        message.author.send_pm("Commend ID added to watch",
+                               "Will watch %s in %s" % (comm_id, sub.shortlink))
     else:
-        message.author.send_pm("Commend ID already added", "Already watching %s in %s" % (comm_id, sub.shortlink))
+        message.author.send_pm("Commend ID already added",
+                               "Already watching %s in %s" % (comm_id, sub.shortlink))
 
     storage.sync()
     gather_body(sub, target)
+
 
 @hook.command(permission=hook.permission.MOD)
 def nointegrate_comment(message, cmd_args, storage):
@@ -200,7 +212,7 @@ def nointegrate_comment(message, cmd_args, storage):
 
     # Check parameters
     if not args.sub_link or \
-        not args.comment_link:
+            not args.comment_link:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     if "posts" not in storage:
@@ -229,12 +241,15 @@ def nointegrate_comment(message, cmd_args, storage):
     # Check if it's in the list already
     if comm_id in elem["integrated_comms"]:
         elem["integrated_comms"].remove(comm_id)
-        message.author.send_pm("Commend ID removed from watch", "Will not watch %s in %s" % (comm_id, sub.shortlink))
+        message.author.send_pm("Commend ID removed from watch",
+                               "Will not watch %s in %s" % (comm_id, sub.shortlink))
     else:
-        message.author.send_pm("Commend ID not watched", "Not watching %s in %s" % (comm_id, sub.shortlink))
+        message.author.send_pm(
+            "Commend ID not watched", "Not watching %s in %s" % (comm_id, sub.shortlink))
 
     storage.sync()
     gather_body(sub, target)
+
 
 @hook.command(permission=hook.permission.MOD)
 def resticky(message, cmd_args, storage):
@@ -268,6 +283,7 @@ def resticky(message, cmd_args, storage):
     sub.make_sticky()
     storage.sync()
 
+
 @hook.periodic(period=60 * 2)
 def check_contents(storage):
     if "posts" not in storage:
@@ -288,6 +304,7 @@ def check_contents(storage):
 
             # Sync changed elements
             storage.sync()
+
 
 def gather_body(submission, stored):
     logger.debug("[%s] gathering body" % stored["shortlink"])
@@ -311,6 +328,7 @@ def gather_body(submission, stored):
         comm = get_comment(comment_id)
         all_body += "\n***\n"
         all_body += comm.body
-        all_body += "\n\nContributor: /u/%s, [source](%s)" % (str(comm.author), comm.permalink)
+        all_body += "\n\nContributor: /u/%s, [source](%s)" % (
+            str(comm.author), comm.permalink)
 
     submission.edit(all_body)

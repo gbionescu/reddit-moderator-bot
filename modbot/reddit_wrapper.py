@@ -9,7 +9,7 @@ from modbot.input.rpc_server import create_server
 
 logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
-watch_dict = {} # maps watched subreddits to threads
+watch_dict = {}  # maps watched subreddits to threads
 
 backend = None
 all_data = None
@@ -34,10 +34,12 @@ update_intervals = {
     "moderator_users": timedata.SEC_IN_MIN * 30
 }
 
+
 class submission():
     """
     Class that encapsulates a PRAW submission
     """
+
     def __init__(self, reddit_sub):
         self._raw = reddit_sub
 
@@ -57,7 +59,8 @@ class submission():
         try:
             return get_subreddit(self._raw.subreddit.display_name)
         except:
-            logger.debug("Could not get subreddit %s" % self._raw.subreddit.display_name)
+            logger.debug("Could not get subreddit %s" %
+                         self._raw.subreddit.display_name)
 
     @property
     def shortlink(self):
@@ -127,10 +130,12 @@ class submission():
     def make_sticky(self):
         self._raw.mod.sticky(state=True, bottom=True)
 
+
 class comment():
     """
     Class that encapsulates a PRAW comment
     """
+
     def __init__(self, reddit_comm):
         self._raw = reddit_comm
 
@@ -157,6 +162,7 @@ class comment():
     @property
     def author(self):
         return self._raw.author
+
 
 class wiki():
     def __init__(self, reddit_wiki):
@@ -186,8 +192,10 @@ class wiki():
 
         # Check if the subreddit has a wiki storage
         if self.subreddit_name not in wiki_storages:
-            logger.debug("Adding %s/%s to wiki storage" % (self.subreddit_name, self.name))
-            wiki_storages[self.subreddit_name] = dsdict(self.subreddit_name, "wiki_cache")
+            logger.debug("Adding %s/%s to wiki storage" %
+                         (self.subreddit_name, self.name))
+            wiki_storages[self.subreddit_name] = dsdict(
+                self.subreddit_name, "wiki_cache")
 
         storage = wiki_storages[self.subreddit_name]
         storage[self.name] = {
@@ -201,10 +209,12 @@ class wiki():
         storage.sync()
 
     def edit(self, content):
-        backend.edit_wiki(get_subreddit(self.subreddit_name)._raw, self.name, content)
+        backend.edit_wiki(get_subreddit(
+            self.subreddit_name)._raw, self.name, content)
 
     def get_content(self):
         return self.content
+
 
 class wiki_stored(wiki):
     def __init__(self, storobj):
@@ -214,10 +224,12 @@ class wiki_stored(wiki):
         self.author = get_user(storobj["author"])
         self.revision_date = int(storobj["revision_date"])
 
+
 class subreddit():
     """
     Class that encapsulates a PRAW subreddit
     """
+
     def __init__(self, reddit_sub):
         self._raw = reddit_sub
         self.wikis = {}
@@ -250,7 +262,8 @@ class subreddit():
 
     def wiki(self, name, force_live=False):
         if force_live:
-            logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
+            logger.debug("Getting a fresh copy of %s/%s" %
+                         (self.display_name, name))
             self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
 
         logger.debug("[%s] Access wiki: %s" % (self, name))
@@ -260,12 +273,14 @@ class subreddit():
 
         # Check if there is a copy of the wiki stored
         if name in wiki_storages[str(self)] and \
-            utcnow() - wiki_storages[str(self)][name]["store_date"] < COLD_WIKI_LIMIT:
+                utcnow() - wiki_storages[str(self)][name]["store_date"] < COLD_WIKI_LIMIT:
 
-            logger.debug("Getting stored copy of %s/%s" % (self.display_name, name))
+            logger.debug("Getting stored copy of %s/%s" %
+                         (self.display_name, name))
             self.wikis[name] = wiki_stored(wiki_storages[str(self)][name])
         else:
-            logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
+            logger.debug("Getting a fresh copy of %s/%s" %
+                         (self.display_name, name))
             self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
 
         return self.wikis[name]
@@ -286,6 +301,7 @@ class subreddit():
 
         return items
 
+
 class widget():
     def __init__(self, widget):
         self._raw = widget
@@ -304,10 +320,12 @@ class widget():
 
         self._raw.mod.update(data=[new_data])
 
+
 class user():
     """
     Class that encapsulates a PRAW user
     """
+
     def __init__(self, reddit_user):
         self._raw = reddit_user
         self.username = reddit_user.name
@@ -330,6 +348,7 @@ class user():
     def name(self):
         return self.username
 
+
 class inboxmessage():
     """
     Encapsulate an inbox message
@@ -339,6 +358,7 @@ class inboxmessage():
         self._raw = msg
         self.body = msg.body
         self.author = user(msg.author)
+
 
 class report():
     """
@@ -359,10 +379,12 @@ class report():
     def subreddit_name(self):
         return self._raw.subreddit.display_name
 
+
 class BotFeeder():
     """
     Feeds submissions or comments to a given function
     """
+
     def __init__(self, storage, objtype, callback, objclass, max_workers, items_per_worker):
         self.objtype = objtype
         self.storage = storage
@@ -409,7 +431,8 @@ class BotFeeder():
         Mark that a new object has been seen on /r/all
         """
         self.set_all_object("seen", obj)
-        self.storchild["drift"] = self.storchild["seen"] - self.storchild["fed"]
+        self.storchild["drift"] = self.storchild["seen"] - \
+            self.storchild["fed"]
 
     def create_new_worker(self):
         """
@@ -423,7 +446,8 @@ class BotFeeder():
         if len(self.storchild["workers"]) < self.max_workers:
             new_obj = {}
             new_obj["start"] = self.storchild["pending"] + 1
-            new_obj["end"] = min(self.storchild["seen"], new_obj["start"] + self.items_per_worker)
+            new_obj["end"] = min(self.storchild["seen"],
+                                 new_obj["start"] + self.items_per_worker)
             new_obj["finished"] = 0
 
             self.storchild["workers"].append(new_obj)
@@ -448,7 +472,8 @@ class BotFeeder():
             element = self.storchild["workers"][0]
 
             self.storchild["fed"] = element["end"]
-            self.storchild["drift"] = self.storchild["seen"] - self.storchild["fed"]
+            self.storchild["drift"] = self.storchild["seen"] - \
+                self.storchild["fed"]
             self.storchild["workers"] = self.storchild["workers"][1:]
             #print("Ended: %d -> %d" % (element["start"], element["end"]))
             #print("Pending %d, Fed %d\n" % (self.storchild["pending"], self.storchild["fed"]))
@@ -497,10 +522,12 @@ class BotFeeder():
         worker["finished"] = 1
         self.storage.sync()
 
+
 class CacheData():
     """
     Holds information about a cached object - whether it's time to update it or not
     """
+
     def __init__(self, interval):
         self.interval = interval
         self.last_check = -1000000
@@ -517,6 +544,7 @@ class CacheData():
     def mark_updated(self):
         self.last_check = utcnow()
 
+
 class modlog():
     def __init__(self, modlog_item):
         self._raw = modlog_item
@@ -528,6 +556,7 @@ class modlog():
         self.action = self._raw.action
         self.target_permalink = self._raw.target_permalink
 
+
 def is_expired(name):
     """
     Check if a cached object has expired
@@ -536,6 +565,7 @@ def is_expired(name):
         cache_data[name] = CacheData(update_intervals[name])
 
     return cache_data[name].expired()
+
 
 def set_input_type(input_type):
     global backend
@@ -549,16 +579,18 @@ def set_input_type(input_type):
     backend = importlib.import_module("modbot.input.%s" % input_type)
 
     # Initialize objects that depend on the backend
-    all_data = dsdict("all", "last_seen") # Last seen /r/all subs and comms
+    all_data = dsdict("all", "last_seen")  # Last seen /r/all subs and comms
     wiki_storages = {}
     subreddit_cache = {}
     cache_data = {}
     report_cmds = dsdict("mod", "cmds")
     modlog_hist = dsdict("mod", "modlog")
 
+
 def set_credentials(credentials, user_agent):
     audit.debug("Credentials set")
     backend.set_praw_opts(credentials, user_agent)
+
 
 def get_subreddit(name):
     """
@@ -570,8 +602,10 @@ def get_subreddit(name):
 
     return subreddit_cache[name]
 
+
 def get_user(name):
     return user(backend.get_reddit().redditor(name))
+
 
 def get_moderated_subs():
     """
@@ -591,6 +625,7 @@ def get_moderated_subs():
     cache_data["moderated_subs"].mark_updated()
     return moderator_subs_list
 
+
 def get_moderator_users():
     """
     Returns list of moderators where the bot is also a mod
@@ -607,11 +642,14 @@ def get_moderator_users():
     cache_data["moderator_users"].mark_updated()
     return cache_data["moderator_users"].opaque
 
+
 def get_comment(id):
     return comment(backend.get_reddit().comment(id=id))
 
+
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
+
 
 def post_submission_text(sub_name, title, body, sticky):
     post_subreddit = get_subreddit(sub_name)
@@ -625,6 +663,7 @@ def post_submission_text(sub_name, title, body, sticky):
         posted.mod.sticky(state=True, bottom=True)
 
     return submission(posted)
+
 
 def new_report(item, author, body):
     """
@@ -675,6 +714,7 @@ def new_report(item, author, body):
     if new_item:
         report_feeder(report(item, get_user(author), body))
 
+
 def new_modlog_item(item):
     if item.id not in modlog_hist:
         modlog_hist[item.id] = item.created_utc
@@ -687,6 +727,7 @@ def new_modlog_item(item):
 
     for key in to_delete:
         del modlog_hist[key]
+
 
 def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
     global sub_feeder
@@ -706,27 +747,28 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
 
     logger.debug("Watching all")
     BotThread(
-            name="submissions_all",
-            target = backend.thread_sub,
-            args=(sub_feeder,))
+        name="submissions_all",
+        target=backend.thread_sub,
+        args=(sub_feeder,))
 
     BotThread(
-            name="comments_all",
-            target = backend.thread_comm,
-            args=(com_feeder,))
+        name="comments_all",
+        target=backend.thread_comm,
+        args=(com_feeder,))
 
     BotThread(
         name="reports_mod",
-        target = backend.thread_reports,
+        target=backend.thread_reports,
         args=(new_report,))
 
     BotThread(
         name="modlog_thread",
-        target = backend.thread_modlog,
+        target=backend.thread_modlog,
         args=(new_modlog_item,))
 
     # Create RPC server
     rpc_server = create_server(inbox_func)
+
 
 def check_inbox(tnow):
     """
@@ -755,6 +797,7 @@ def check_inbox(tnow):
         "inbox_thread")
     cache_data["inbox_update"].mark_updated()
 
+
 def start_tick(period, call_per):
     def tick(tnow):
         try:
@@ -770,13 +813,15 @@ def start_tick(period, call_per):
             # Call periodic callback
             call_per(tnow)
         except:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
     logger.debug("Starting periodic check thread with %f interval" % period)
     BotThread(
-            name="periodic_thread",
-            target=backend.tick,
-            args=(period, tick,))
+        name="periodic_thread",
+        target=backend.tick,
+        args=(period, tick,))
+
 
 def set_signature(signature):
     global bot_signature

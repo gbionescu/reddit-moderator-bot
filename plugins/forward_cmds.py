@@ -1,6 +1,7 @@
 import datetime
 from modbot import hook
 
+
 @hook.command(raw=True)
 def fwd_things(event, bot_owner, is_report):
     """

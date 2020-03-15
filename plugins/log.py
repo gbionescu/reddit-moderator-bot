@@ -18,7 +18,7 @@ from modbot import hook
 # @hook.periodic(period=1)
 # def asd():
 #     pass
-    #print("log")
+# print("log")
 
 
 # @hook.comment(subreddit=["pics", "AskReddit"])

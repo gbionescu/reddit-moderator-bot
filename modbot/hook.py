@@ -7,28 +7,32 @@ from modbot.log import botlog
 callbacks = []
 plugins_with_wikis = []
 logger = botlog('hook')
-hook_rights = {} # Map of non standard hook rights
+hook_rights = {}  # Map of non standard hook rights
+
 
 @enum.unique
 class subreddit_type(enum.Enum):
-    MASTER_SUBREDDIT = 0 # References the master subreddit
+    MASTER_SUBREDDIT = 0  # References the master subreddit
+
 
 @enum.unique
 class callback_type(enum.Enum):
-    SUB = 0 # Submission
-    COM = 1 # Comment
-    PER = 2 # Periodic
-    ONL = 3 # On load
-    ONS = 4 # On start
-    CMD = 5 # message command
-    REP = 6 # report command
-    MLG = 7 # modlog event
+    SUB = 0  # Submission
+    COM = 1  # Comment
+    PER = 2  # Periodic
+    ONL = 3  # On load
+    ONS = 4  # On start
+    CMD = 5  # message command
+    REP = 6  # report command
+    MLG = 7  # modlog event
+
 
 @enum.unique
 class permission(enum.IntEnum):
     ANY = 0
     MOD = 10
     OWNER = 1000
+
 
 class plugin_function():
     def __init__(self, func, ctype, kwargs, path):
@@ -50,8 +54,8 @@ class plugin_function():
         self.subreddit = None
         self.period = None
         self.first = None
-        self.cron = None # Cron string given as parameter
-        self.next_cron_trigger = None # Next cron trigger time
+        self.cron = None  # Cron string given as parameter
+        self.next_cron_trigger = None  # Next cron trigger time
 
         self.plugin_name = pathlib.Path(path).name.replace(".py", "")
 
@@ -97,17 +101,18 @@ class plugin_function():
     def set_last_exec(self, mark):
         self.last_exec = mark
 
+
 class PluginWiki():
     def __init__(self,
-        wiki_page,
-        description,
-        documentation,
-        wiki_change_notifier,
-        subreddits,
-        refresh_interval,
-        mode,
-        fpath,
-        default_enabled):
+                 wiki_page,
+                 description,
+                 documentation,
+                 wiki_change_notifier,
+                 subreddits,
+                 refresh_interval,
+                 mode,
+                 fpath,
+                 default_enabled):
 
         self.wiki_page = wiki_page
         self.description = description
@@ -121,11 +126,13 @@ class PluginWiki():
 
         logger.debug("Register wiki page " + wiki_page)
 
+
 def has_rights_on(level, command_name):
     if int(level) < int(hook_rights[command_name]):
         return False
 
     return True
+
 
 def register_wiki_page(
         wiki_page,
@@ -136,25 +143,26 @@ def register_wiki_page(
         refresh_interval=60,
         mode="rw",
         default_enabled=False,
-        ):
+):
     """
     Register a plugin that has its own configuration page.
     """
     obj = PluginWiki(
-                wiki_page=wiki_page,
-                description=description,
-                documentation=documentation,
-                wiki_change_notifier=wiki_change_notifier,
-                subreddits=subreddits,
-                refresh_interval=refresh_interval,
-                mode=mode,
-                fpath=inspect.stack()[1][1],
-                default_enabled=default_enabled
-                )
+        wiki_page=wiki_page,
+        description=description,
+        documentation=documentation,
+        wiki_change_notifier=wiki_change_notifier,
+        subreddits=subreddits,
+        refresh_interval=refresh_interval,
+        mode=mode,
+        fpath=inspect.stack()[1][1],
+        default_enabled=default_enabled
+    )
 
     plugins_with_wikis.append(obj)
 
     return obj
+
 
 def logged_call(func):
     def call_func(*args, **kwargs):
@@ -163,131 +171,157 @@ def logged_call(func):
 
     return call_func
 
+
 def add_plugin_function(obj):
     """
     Generic function for adding a plugin_function to a plugin.
     """
-    logger.debug("Add: " + str(obj.func) + " type " + str(obj.ctype) + " path " + obj.path)
+    logger.debug("Add: " + str(obj.func) + " type " +
+                 str(obj.ctype) + " path " + obj.path)
 
     for func in callbacks:
         func(obj)
+
 
 def submission(*args, **kwargs):
     """
     Submissions hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.SUB, kwargs, inspect.stack()[2][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.SUB, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.SUB, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.SUB, None, inspect.stack()[1][1]))
         return args[0]
     else:  # this decorator is being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def periodic(*args, **kwargs):
     """
     Periodic hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.PER, kwargs, inspect.stack()[2][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.PER, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.PER, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.PER, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def comment(*args, **kwargs):
     """
     Comment hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.COM, kwargs, inspect.stack()[2][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.COM, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.COM, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.COM, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def on_load(*args, **kwargs):
     """
     On plugin load hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.ONL, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.ONL, kwargs, inspect.stack()[1][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.ONL, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.ONL, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def on_start(*args, **kwargs):
     """
     On bot start hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.ONS, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.ONS, kwargs, inspect.stack()[1][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.ONS, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.ONS, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def command(*args, **kwargs):
     """
     Message command hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.CMD, kwargs, inspect.stack()[2][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.CMD, kwargs, inspect.stack()[2][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.CMD, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.CMD, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def report_command(*args, **kwargs):
     """
     Report reason command hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.REP, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.REP, kwargs, inspect.stack()[1][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.REP, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.REP, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)
+
 
 def modlog(*args, **kwargs):
     """
     modlog hook
     """
     def _command_hook(func):
-        add_plugin_function(plugin_function(func, callback_type.MLG, kwargs, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            func, callback_type.MLG, kwargs, inspect.stack()[1][1]))
         return func
 
     # this decorator is being used directly
     if len(args) == 1 and callable(args[0]):
-        add_plugin_function(plugin_function(args[0], callback_type.MLG, None, inspect.stack()[1][1]))
+        add_plugin_function(plugin_function(
+            args[0], callback_type.MLG, None, inspect.stack()[1][1]))
         return args[0]
-    else: # this decorator if being used indirectly, so return a decorator function
+    else:  # this decorator if being used indirectly, so return a decorator function
         return lambda func: _command_hook(func)

@@ -7,9 +7,11 @@ enable_flair_posts = """
 word_notifier
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_notify(create_bot):
     wiki_trigger_words = """

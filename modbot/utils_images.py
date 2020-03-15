@@ -9,6 +9,7 @@ from modbot.utils import utcnow
 STORE_DIR = "temp_files/"
 os.makedirs(STORE_DIR, exist_ok=True)
 
+
 def gen_fname(sub_name, link):
     """
     Generate filename based on subreddit name and link
@@ -18,6 +19,7 @@ def gen_fname(sub_name, link):
     link = regex.sub('', link)
 
     return STORE_DIR + sub_name + "_" + link + ".jpg"
+
 
 def proc_imgur_url(starturl):
     """
@@ -42,8 +44,10 @@ def proc_imgur_url(starturl):
     if len(imgurhash) == 0:
         return starturl
 
-    finishedurl.append('https://i.imgur.com/{0}{1}'.format(imgurhash[0][0], imgurhash[0][1]))
+    finishedurl.append(
+        'https://i.imgur.com/{0}{1}'.format(imgurhash[0][0], imgurhash[0][1]))
     return finishedurl
+
 
 def get_picture(url, fname, timeout_sec=20, max_size=1024*1024*20):
     if "imgur.com" in url:

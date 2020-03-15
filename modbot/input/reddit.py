@@ -1,4 +1,5 @@
-import praw, prawcore
+import praw
+import prawcore
 import time
 import requests
 import json
@@ -7,16 +8,19 @@ from modbot.utils import utcnow, timedata
 
 praw_credentials = None
 praw_user_agent = None
-praw_inst = {} # Dictionary of praw sessions
+praw_inst = {}  # Dictionary of praw sessions
 logger = botlog("redditinput", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
+
 
 class Thing():
     """
     Thing class to mock reddit thing
     """
+
     def __init__(self, id):
         self.id = id
+
 
 def set_praw_opts(credentials, user_agent):
     """
@@ -27,6 +31,7 @@ def set_praw_opts(credentials, user_agent):
 
     praw_credentials = credentials
     praw_user_agent = user_agent
+
 
 def get_reddit_object(url):
     """
@@ -41,6 +46,7 @@ def get_reddit_object(url):
         return data["data"]["children"][0]["data"]["id"]
     except:
         return None
+
 
 def get_reddit(name="default", force_create=False):
     """
@@ -65,6 +71,7 @@ def get_reddit(name="default", force_create=False):
     praw_inst[name] = create_session()
 
     return praw_inst[name]
+
 
 def thread_sub(feeder):
     """
@@ -113,7 +120,8 @@ def thread_comm(feeder):
     logger.debug("Getting base comment")
     # Get one comment and set it as the initial one
     while not first_set:
-        comm_id = get_reddit_object("https://www.reddit.com/r/all/comments.json")
+        comm_id = get_reddit_object(
+            "https://www.reddit.com/r/all/comments.json")
         if comm_id:
             feeder.set_initial(Thing(comm_id))
             first_set = True
@@ -125,8 +133,10 @@ def thread_comm(feeder):
         time.sleep(10)
 
         # Feed all submissions
-        comm_id = get_reddit_object("https://www.reddit.com/r/all/comments.json")
+        comm_id = get_reddit_object(
+            "https://www.reddit.com/r/all/comments.json")
         feeder.new_all_object(Thing(comm_id))
+
 
 def thread_reports(new_report):
     """
@@ -145,10 +155,12 @@ def thread_reports(new_report):
             session = get_reddit("reports", True)
 
         except Exception:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
         # If a loop happens, sleep for a bit
         time.sleep(5)
+
 
 def thread_modlog(modlog_func):
     """
@@ -166,16 +178,20 @@ def thread_modlog(modlog_func):
             session = get_reddit("reports", True)
 
         except Exception:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
         # If a loop happens, sleep for a bit
         time.sleep(5)
 
+
 def get_wiki(subreddit, wiki_name):
     return subreddit.wiki[wiki_name]
 
+
 def edit_wiki(subreddit, wiki_name, content):
     subreddit.wiki[wiki_name].edit(content)
+
 
 def tick(period, trigger):
     while True:
@@ -186,4 +202,5 @@ def tick(period, trigger):
         try:
             trigger(tnow)
         except:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()

@@ -13,6 +13,7 @@ from modbot.hook import plugins_with_wikis
 logger = botlog("wiki")
 in_progress = False
 
+
 @hook.periodic(period=10)
 def refresh_wikis(plugin_manager):
     """
@@ -27,7 +28,9 @@ def refresh_wikis(plugin_manager):
                 # If the content has changed, trigger the update function
                 if wiki.update_content() and wiki.notifier:
                     logger.debug("Wiki %s/%s changed" % (sub, wiki))
-                    wiki.notifier(plugin_manager.dispatchers[sub].subreddit, wiki.get_change_obj())
+                    wiki.notifier(
+                        plugin_manager.dispatchers[sub].subreddit, wiki.get_change_obj())
+
 
 def init_control_panel(sub_name, plugin_list, plugin_manager):
     # Get subreddit dispatcher
@@ -44,7 +47,8 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     content += "[Enabled Plugins]\n"
 
     if not crt_content:
-        logger.error("Could not get control panel for %s. Aborting update" % sub_name)
+        logger.error(
+            "Could not get control panel for %s. Aborting update" % sub_name)
         return
 
     enabled_plugins = []
@@ -58,7 +62,8 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     # Enable default enabled wikis
     for page in plugin_list:
         if page.default_enabled and page.wiki_page not in enabled_plugins:
-            logger.debug("[%s] Enabling default plugin %s" % (sub_name, page.wiki_page))
+            logger.debug("[%s] Enabling default plugin %s" %
+                         (sub_name, page.wiki_page))
             enabled_plugins.append(page.wiki_page)
             content += "%s\n" % page.wiki_page
 
@@ -67,7 +72,8 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     for page in plugin_list:
         content += "\n\n### %s\n" % page.wiki_page
         content += "# %s\n" % page.description
-        content += "# https://www.reddit.com/r/%s/wiki/%s\n" % (sub_dispatcher, page.wiki_page)
+        content += "# https://www.reddit.com/r/%s/wiki/%s\n" % (
+            sub_dispatcher, page.wiki_page)
 
         if page.wiki_page in enabled_plugins:
             content += "# Current status: Enabled"
@@ -80,12 +86,14 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
             # Call the wiki notifier with the current content
             if new_wiki and new_wiki.notifier:
                 new_wiki.update_content()
-                new_wiki.notifier(sub_dispatcher.subreddit, new_wiki.get_change_obj())
+                new_wiki.notifier(sub_dispatcher.subreddit,
+                                  new_wiki.get_change_obj())
         else:
             content += "# Current status: Disabled"
             sub_dispatcher.disable_wiki(page.wiki_page)
 
     sub_dispatcher.set_control_panel(prepare_wiki_content(content))
+
 
 @hook.on_start
 def create_wikis(plugin_manager):
@@ -113,9 +121,11 @@ def create_wikis(plugin_manager):
 
             plugins_for_crt_sub.append(plugin)
 
-        plugins_for_crt_sub = sorted(plugins_for_crt_sub, key=lambda m: m.wiki_page)
+        plugins_for_crt_sub = sorted(
+            plugins_for_crt_sub, key=lambda m: m.wiki_page)
 
         init_control_panel(sub, plugins_for_crt_sub, plugin_manager)
+
 
 @hook.periodic(period=30)
 def refresh_control_panels(plugin_manager):

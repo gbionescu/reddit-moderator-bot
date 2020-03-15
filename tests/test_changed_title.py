@@ -7,9 +7,11 @@ enable_flair_posts = """
 changed_title
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_changed_title(create_bot):
     wiki_flair_posts = """
@@ -27,18 +29,21 @@ def test_changed_title(create_bot):
     test.advance_time_60s()
 
     # Create fake articles
-    test.FakeURL("https://google.com/myarticle1", "I don't like mosquitoes because they suck blood")
-    test.FakeURL("https://google.com/myarticle2", "qwerty asdfg zxcvb poiuy lkjhg mnbvc")
+    test.FakeURL("https://google.com/myarticle1",
+                 "I don't like mosquitoes because they suck blood")
+    test.FakeURL("https://google.com/myarticle2",
+                 "qwerty asdfg zxcvb poiuy lkjhg mnbvc")
 
     # Test it
     test_submission1 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAA BBBB CCCC DDDD EEEE FFFF", url="https://google.com/myarticle1")
+                                           title="AAAA BBBB CCCC DDDD EEEE FFFF", url="https://google.com/myarticle1")
     test_submission2 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="qwerty asdfg zxcvb poiuy lkjhg mnbvc", url="https://google.com/myarticle2")
+                                           title="qwerty asdfg zxcvb poiuy lkjhg mnbvc", url="https://google.com/myarticle2")
     test.advance_time_10m()
 
     assert(len(test_submission1.reports) == 1)
     assert(len(test_submission2.reports) == 0)
+
 
 def test_invalid_cfg(create_bot):
     wiki_flair_posts = """

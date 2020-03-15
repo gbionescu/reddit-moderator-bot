@@ -3,9 +3,11 @@ import modbot.input.test as test
 
 TEST_SUBREDDIT = "testsub123"
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_create_post(create_bot):
     # Test basic commands
@@ -33,12 +35,12 @@ def test_create_post(create_bot):
     # Tell the bot to add them
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/integrate_comment --sub_link %s --comment_link %s" % \
-            (target_sub.shortlink, comm1.permalink))
+        "/integrate_comment --sub_link %s --comment_link %s" %
+        (target_sub.shortlink, comm1.permalink))
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/integrate_comment --sub_link %s --comment_link %s" % \
-            (target_sub.shortlink, comm2.permalink))
+        "/integrate_comment --sub_link %s --comment_link %s" %
+        (target_sub.shortlink, comm2.permalink))
 
     # Check if added
     test.advance_time_10m()
@@ -56,8 +58,8 @@ def test_create_post(create_bot):
 
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/nointegrate_comment --sub_link %s --comment_link %s" % \
-            (target_sub.shortlink, comm1.permalink))
+        "/nointegrate_comment --sub_link %s --comment_link %s" %
+        (target_sub.shortlink, comm1.permalink))
 
     # Check if added again
     test.advance_time_10m()
@@ -82,6 +84,7 @@ def test_create_post(create_bot):
     # Check if it was updated
     test.advance_time_10m()
     assert "qwe3" in target_sub.body
+
 
 def test_clone_post(create_bot):
     # Test cloned post
@@ -118,6 +121,7 @@ def test_clone_post(create_bot):
 
     # Check for content
     assert "asd5678" in target_sub.body
+
 
 def test_create_from_wiki(create_bot):
     content = """

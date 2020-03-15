@@ -2,6 +2,7 @@ import grpc
 from concurrent import futures
 from tools.botrpc import console_pb2, console_pb2_grpc
 
+
 class rpcuser():
     def __init__(self):
         self.username = "console_user"
@@ -27,6 +28,7 @@ class rpcmessage():
         self.body = body
         self.author = rpcuser()
 
+
 class Servicer(console_pb2_grpc.BotServicer):
     def __init__(self, callback):
         self.callback = callback
@@ -35,6 +37,7 @@ class Servicer(console_pb2_grpc.BotServicer):
         self.callback(rpcmessage(request.data))
 
         return console_pb2.response(data="res")
+
 
 def create_server(inbox_func):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

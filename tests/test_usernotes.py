@@ -7,9 +7,11 @@ enable_flair_posts = """
 word_notifier
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_usernotes(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
