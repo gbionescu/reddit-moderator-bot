@@ -15,8 +15,6 @@ backend = None
 all_data = None
 subreddit_cache = None
 wiki_storages = None
-last_wiki_update = None
-wiki_update_thread = None
 sub_feeder = None
 com_feeder = None
 bot_signature = None
@@ -29,9 +27,8 @@ modlog_hist = None
 last_moderator_subs_check = 0
 moderator_subs_list = []
 
-COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 5
+COLD_WIKI_LIMIT = timedata.SEC_IN_MIN
 update_intervals = {
-    "wiki_update": timedata.SEC_IN_MIN,
     "inbox_update": 10,
     "moderated_subs": timedata.SEC_IN_MIN * 30,
     "moderator_users": timedata.SEC_IN_MIN * 30
@@ -214,7 +211,7 @@ class wiki_stored(wiki):
         self.subreddit_name = storobj["subreddit"]
         self.content = storobj["content"]
         self.name = storobj["name"]
-        self.author = user(get_user(storobj["author"]))
+        self.author = get_user(storobj["author"])
         self.revision_date = int(storobj["revision_date"])
 
 class subreddit():
@@ -256,21 +253,20 @@ class subreddit():
             logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
             self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
 
-        if name not in self.wikis:
-            logger.debug("[%s] Access wiki: %s" % (self, name))
+        logger.debug("[%s] Access wiki: %s" % (self, name))
 
-            if str(self) not in wiki_storages:
-                wiki_storages[str(self)] = dsdict(str(self), "wiki_cache")
+        if str(self) not in wiki_storages:
+            wiki_storages[str(self)] = dsdict(str(self), "wiki_cache")
 
-            # Check if there is a copy of the wiki stored
-            if name in wiki_storages[str(self)] and \
-                utcnow() - wiki_storages[str(self)][name]["store_date"] < COLD_WIKI_LIMIT:
+        # Check if there is a copy of the wiki stored
+        if name in wiki_storages[str(self)] and \
+            utcnow() - wiki_storages[str(self)][name]["store_date"] < COLD_WIKI_LIMIT:
 
-                logger.debug("Getting stored copy of %s/%s" % (self.display_name, name))
-                self.wikis[name] = wiki_stored(wiki_storages[str(self)][name])
-            else:
-                logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
-                self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
+            logger.debug("Getting stored copy of %s/%s" % (self.display_name, name))
+            self.wikis[name] = wiki_stored(wiki_storages[str(self)][name])
+        else:
+            logger.debug("Getting a fresh copy of %s/%s" % (self.display_name, name))
+            self.wikis[name] = wiki(backend.get_wiki(self._raw, name))
 
         return self.wikis[name]
 
@@ -732,32 +728,6 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
     # Create RPC server
     rpc_server = create_server(inbox_func)
 
-def update_all_wikis(tnow):
-    global wiki_update_thread
-
-    def update_wikis():
-        logger.debug("Starting wiki update")
-        for sub in list(subreddit_cache.values()):
-            if sub not in list(get_moderated_subs()):
-                continue
-            logger.debug("Updating %s" % sub)
-            for wiki_name in list(sub.wikis):
-                sub.wikis[wiki_name] = wiki(backend.get_wiki(sub._raw, wiki_name))
-
-        logger.debug("Done wiki update")
-
-    if wiki_update_thread and wiki_update_thread.isAlive():
-        return
-
-    if not is_expired("wiki_update"):
-        return
-
-    wiki_update_thread = BotThread(
-            name="wiki updater",
-            target=update_wikis)
-
-    cache_data["wiki_update"].mark_updated()
-
 def check_inbox(tnow):
     """
     Check the inbox for updates
@@ -788,7 +758,6 @@ def check_inbox(tnow):
 def start_tick(period, call_per):
     def tick(tnow):
         try:
-            update_all_wikis(tnow)
             check_inbox(tnow)
 
             # Check if we can feed new elements
