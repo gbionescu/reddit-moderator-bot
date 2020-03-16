@@ -162,3 +162,73 @@ def test_create_from_wiki(create_bot):
     # Check it again
     test.advance_time_10m()
     assert "XXX" in target_sub.body
+
+
+def test_sched_post(create_bot):
+    enable_sched_posts = """
+    [Enabled Plugins]
+    schedule_posts
+    """
+
+    sub = test.get_subreddit(TEST_SUBREDDIT)
+
+    test.set_time(22 * 60 * 60)
+    test_submission = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT,
+        author_name="JohnDoe1",
+        title="title_test",
+        body="asd1234")
+
+    wiki_sched_posts = r"""
+    [post_at_12AM]
+    title=test1 test2 ${DAY}.${MONTH}.${YEAR}
+    body=aaa
+     bbb
+     ccc
+    interval= 0 0 * * * *
+
+    [post_at_1AM]
+    title=test3 test4
+    wikibody=post1AM
+    interval= 0 1 * * * *
+
+    [post_at_2AM]
+    title=test5 test6
+    clonepost=%s
+    interval= 0 2 * * * *
+    """ % test_submission.permalink
+
+    sub.edit_wiki("post1AM", "xx1")
+
+    # Update control panel and plugin wiki
+    sub.edit_wiki("control_panel", enable_sched_posts)
+    sub.edit_wiki("schedule_posts", wiki_sched_posts)
+    test.advance_time_10m()
+
+    test.advance_time_1h()
+    test.advance_time_1h()
+    test.advance_time_1h()
+    test.advance_time_1h()
+
+    post_12am = None
+    post_1am = None
+    post_2am = None
+
+    # Get the posts
+    for post in test.cache_submissions.values():
+        if post.title.startswith("test1 test2"):
+            post_12am = post
+
+        if post.title == "test3 test4":
+            post_1am = post
+
+        if post.title == "test5 test6":
+            post_2am = post
+
+    assert post_12am
+    assert post_1am
+    assert post_2am
+
+    assert post_12am.created_utc - 86400 < 60
+    assert post_1am.created_utc - 90000 < 60
+    assert post_2am.created_utc - 93600 < 60

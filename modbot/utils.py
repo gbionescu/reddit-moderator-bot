@@ -54,6 +54,13 @@ def utcnow():
     """
     return (get_utcnow() - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
 
+def timestamp_string(timestamp):
+    """
+    Converts a timestamp to string
+    """
+    date = pytz.utc.localize(datetime.datetime.fromtimestamp(timestamp))
+
+    return date.strftime("%Y-%m-%d / %H:%M:%S") + " " + str(date.tzinfo)
 
 def date():
     """

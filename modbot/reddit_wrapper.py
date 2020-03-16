@@ -3,7 +3,7 @@ import time
 import base36
 import importlib
 from modbot.log import botlog, loglevel
-from modbot.utils import utcnow, timedata, BotThread
+from modbot.utils import utcnow, timedata, BotThread, get_utcnow
 from modbot.storage import dsdict
 from modbot.input.rpc_server import create_server
 
@@ -650,9 +650,21 @@ def get_comment(id):
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
 
+def format_string(to_format):
+    date = get_utcnow()
+
+    to_format = to_format.replace(r"${DAY}", str(date.day).zfill(2))
+    to_format = to_format.replace(r"${MONTH}", str(date.month).zfill(2))
+    to_format = to_format.replace(r"${YEAR}", str(date.year))
+
+    return to_format
 
 def post_submission_text(sub_name, title, body, sticky):
     post_subreddit = get_subreddit(sub_name)
+
+    body = format_string(body)
+    title = format_string(title)
+
     # TODO check if bot moderates sub
     posted = post_subreddit._raw.submit(
         title=title,
