@@ -9,11 +9,14 @@ EMPTY_WIKI = ""
 RECENT_EDIT_LIMIT = utils.timedata.SEC_IN_MIN * 2
 
 # TODO: merge this class with reddit_wrapper.py/wiki
+
+
 class WatchedWiki():
     class WikiChange():
         """
         Represents a changed wiki transaction
         """
+
         def __init__(self, wiki):
             self.author = wiki.author
             self.content = wiki.content
@@ -26,6 +29,7 @@ class WatchedWiki():
 
     DOC_BEGIN = "    ###### <Documentation> (do not edit below)\n\n"
     DOC_END = "\n\n    ###### <Documentation> (do not edit above)\n"
+
     def __init__(self, subreddit, plugin):
         self.sub = subreddit
         self.subreddit_name = subreddit.display_name
@@ -36,13 +40,13 @@ class WatchedWiki():
             self.content = self.sub.wiki(self.wiki_page).get_content()
         except prawcore.exceptions.NotFound:
             logger.debug("Subreddit %s does not contain wiki %s. Creating it." %
-                    (subreddit.display_name, self.wiki_page))
+                         (subreddit.display_name, self.wiki_page))
             self.sub.wiki[self.wiki_page].edit(EMPTY_WIKI)
             self.content = EMPTY_WIKI
 
         self.old_content = self.content
         self.last_update = utils.utcnow()
-        self.refresh_interval = plugin.refresh_interval # not used
+        self.refresh_interval = plugin.refresh_interval  # not used
         self.notifier = plugin.wiki_change_notifier
         self.description = plugin.description
         self.raw_documentation = plugin.documentation
@@ -68,7 +72,8 @@ class WatchedWiki():
             self.documentation = WatchedWiki.DOC_BEGIN
             split_doc = self.raw_documentation.strip().split("\n")
 
-            self.documentation += "\n".join(("    ## " + line).rstrip() for line in split_doc)
+            self.documentation += "\n".join(("    ## " + line).rstrip()
+                                            for line in split_doc)
             self.documentation += WatchedWiki.DOC_END
 
         # Set documentation if not already present
@@ -78,7 +83,8 @@ class WatchedWiki():
             end = self.content.replace("\r", "").find(WatchedWiki.DOC_END)
 
             if begin != -1 and end != -1:
-                self.content = self.content[0:begin] + self.documentation + self.content[end + len(WatchedWiki.DOC_END):]
+                self.content = self.content[0:begin] + self.documentation + \
+                    self.content[end + len(WatchedWiki.DOC_END):]
             else:
                 self.content = self.documentation + self.content
 
@@ -109,7 +115,8 @@ class WatchedWiki():
 
             self.sub.wiki(self.wiki_page).edit(content)
         else:
-            logger.debug("Can't write to %s, because it's read only" % self.wiki_page)
+            logger.debug("Can't write to %s, because it's read only" %
+                         self.wiki_page)
 
     def get_change_obj(self):
         return self.WikiChange(self.sub.wiki(self.wiki_page))

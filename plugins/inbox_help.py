@@ -2,6 +2,7 @@ from modbot import hook
 from modbot.commands import inbox_cmd_list, report_cmd_list, get_rights_for_user, cmd_prefix
 from modbot.hook import has_rights_on
 
+
 @hook.command()
 def help(message, bot_owner):
     """
@@ -43,12 +44,14 @@ def help(message, bot_owner):
 
     message.author.send_pm("Help commands", reply)
 
+
 @hook.command()
 def ping(message):
     """
     Sends 'pong' back
     """
     message.author.send_pm("pong", "Hey %s! Pong!" % message.author.name)
+
 
 @hook.report_command()
 def ping2(report):

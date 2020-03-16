@@ -69,10 +69,12 @@ autoflair = 1
 logger = botlog("flair_posts")
 MIN_GRANULARITY = timedata.SEC_IN_MIN
 
+
 class AutoFlair():
     """
     Contains conditions which decide whether flair filters match or not
     """
+
     def cond_domain(self, arg, sub):
         logger.debug("Checking domain " + sub.domain + " for " + str(arg))
 
@@ -149,10 +151,12 @@ class AutoFlair():
 
         return True
 
+
 class Flair():
     """
     Store data about how autoflair is configured for a subreddit
     """
+
     def __init__(self, section):
         self.message_intervals = None
         self.autoflair = None
@@ -160,7 +164,8 @@ class Flair():
         self.aflairs = []
 
         if "message_intervals" in section:
-            self.message_intervals = sorted([int(i) for i in section["message_intervals"].split(",")])
+            self.message_intervals = sorted(
+                [int(i) for i in section["message_intervals"].split(",")])
 
         if "autoflair" in section:
             self.autoflair = int(section["autoflair"])
@@ -172,7 +177,8 @@ class Flair():
         self.aflairs.append(AutoFlair(section, name))
 
         # Sort by priority
-        self.aflairs = sorted(self.aflairs, key=lambda prio: int(prio.priority))
+        self.aflairs = sorted(
+            self.aflairs, key=lambda prio: int(prio.priority))
 
     def get_lowest_time(self):
         """
@@ -212,8 +218,10 @@ class Flair():
         for i in self.message_intervals:
             yield i * timedata.SEC_IN_MIN
 
+
 # Store wiki configuration per subreddit
 wiki_config = {}
+
 
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for flair_posts, subreddit %s" % sub)
@@ -225,7 +233,7 @@ def wiki_changed(sub, change):
         # If it's a recent edit, notify the author
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
-                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
+                                  "It does not contain the [Setup] section. Please read the documentation on how to configure it")
         return
 
     # Read the setup section
@@ -239,7 +247,9 @@ def wiki_changed(sub, change):
 
     # Save the config
     wiki_config[sub.display_name] = cfg
-    logger.debug("Added config to wiki_config. Current list: %s" % str(wiki_config.keys()))
+    logger.debug("Added config to wiki_config. Current list: %s" %
+                 str(wiki_config.keys()))
+
 
 # Register wiki page
 wiki = hook.register_wiki_page(
@@ -248,17 +258,20 @@ wiki = hook.register_wiki_page(
     documentation=plugin_documentation,
     wiki_change_notifier=wiki_changed)
 
+
 @hook.submission(wiki=wiki)
 def submission(subreddit, submission, storage):
     if subreddit.display_name not in wiki_config:
-        logger.debug("[%s] Not in wiki config %s" % (submission.shortlink, subreddit.display_name))
+        logger.debug("[%s] Not in wiki config %s" %
+                     (submission.shortlink, subreddit.display_name))
         return
 
     tnow = utcnow()
     # If the post has been created more than the lowest time we can take an action
     lt = wiki_config[subreddit.display_name].get_lowest_time()
     if tnow - submission.created_utc > lt:
-        logger.debug("[%s] Submission too old %s" % (subreddit.display_name, submission.shortlink))
+        logger.debug("[%s] Submission too old %s" %
+                     (subreddit.display_name, submission.shortlink))
         # Skip the post
         return
 
@@ -292,6 +305,7 @@ def submission(subreddit, submission, storage):
     storage["subs"][submission.shortlink] = new
     storage.sync()
 
+
 def flair_updater(subreddit, storage, reddit):
     if subreddit.display_name not in wiki_config:
         return
@@ -302,17 +316,20 @@ def flair_updater(subreddit, storage, reddit):
 
         # Did the author remove it?
         if post_sub.author == None:
-            logger.debug("[%s] Remove because deleted by user" % (post["shortlink"]))
+            logger.debug("[%s] Remove because deleted by user" %
+                         (post["shortlink"]))
             to_remove.append(post)
             continue
         # Was it removed?
         elif post_sub.is_crosspostable == False and not post_sub.subreddit.is_private():
-            logger.debug("[%s] Remove because deleted by mod" % (post["shortlink"]))
+            logger.debug("[%s] Remove because deleted by mod" %
+                         (post["shortlink"]))
             to_remove.append(post)
             continue
 
         if post_sub.link_flair_text not in [None, ""]:
-            logger.debug("[%s] Found flair %s - removing!" % (post["shortlink"], post_sub.link_flair_text))
+            logger.debug("[%s] Found flair %s - removing!" %
+                         (post["shortlink"], post_sub.link_flair_text))
             to_remove.append(post)
 
     # Clean up threads that are to be removed
@@ -323,6 +340,7 @@ def flair_updater(subreddit, storage, reddit):
             pass
     if len(to_remove) > 0:
         storage.sync()
+
 
 @hook.periodic(period=10, wiki=wiki)
 def per(subreddit, storage, reddit):
@@ -347,7 +365,8 @@ def per(subreddit, storage, reddit):
             # If the difference between trigger time and present is larger than the minimum
             # granularity, then something may have happened (e.g. bot was stopped)
             if tnow - post["next_message"][post["notif_level"]] > MIN_GRANULARITY:
-                logger.debug("[%s] Remove because exceeded min granularity" % (post["shortlink"]))
+                logger.debug(
+                    "[%s] Remove because exceeded min granularity" % (post["shortlink"]))
                 to_remove.append(post)
                 continue
 
@@ -376,7 +395,8 @@ def per(subreddit, storage, reddit):
 
                 crt_sub = reddit.get_submission(url=post["shortlink"])
                 crt_sub.author.send_pm("Please flair your post", msg)
-                logger.info("Sent message %d for %s" % (post["notif_level"], post["shortlink"]))
+                logger.info("Sent message %d for %s" %
+                            (post["notif_level"], post["shortlink"]))
 
         if post["has_aflair"] and not post["aflair_done"] and tnow - post["aflair_time"] > 0:
             post["aflair_done"] = True
@@ -396,13 +416,15 @@ def per(subreddit, storage, reddit):
             if proposed_flair:
                 for choice in crt_sub.flair.choices():
                     if choice["flair_css_class"] == proposed_flair:
-                        logger.debug("[%s] Setting autoflair %s" % (post["shortlink"], proposed_flair))
+                        logger.debug("[%s] Setting autoflair %s" %
+                                     (post["shortlink"], proposed_flair))
                         crt_sub.set_flair_id(choice["flair_template_id"])
                         to_remove.append(post)
 
         if post["max_level"] <= post["notif_level"]:
             if not post["has_aflair"] or (post["has_aflair"] and post["aflair_done"]):
-                logger.debug("[%s] Remove because no flair" % (post["shortlink"]))
+                logger.debug("[%s] Remove because no flair" %
+                             (post["shortlink"]))
                 to_remove.append(post)
                 continue
 

@@ -4,6 +4,7 @@ import time
 from datetime import timedelta
 from modbot import hook
 
+
 @hook.command(permission=hook.permission.OWNER)
 def system_status(message):
     """
@@ -18,15 +19,15 @@ def system_status(message):
     uptime = timedelta(seconds=round(time.time() - process.create_time()))
 
     reply = \
-    """
+        """
     Uptime: %s
     Threads: %s
     CPU Usage: %s
     Memory Usage (MB): %s""" % (
-        uptime,
-        thread_count,
-        cpu_usage,
-        memory_usage
-    )
+            uptime,
+            thread_count,
+            cpu_usage,
+            memory_usage
+        )
 
     message.author.send_pm("System status", reply)

@@ -7,9 +7,11 @@ enable_flair_posts = """
 repost_detector
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_repost_detector(create_bot):
     wiki_flair_posts = """
@@ -30,13 +32,13 @@ def test_repost_detector(create_bot):
 
     # Create a new submissinon that we will be testing against
     test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAA BBBB CCCC DDDD EEEE FFFF")
+                        title="AAAA BBBB CCCC DDDD EEEE FFFF")
 
     test.advance_time_30m()
 
     # Create another submission
     test_submission2 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAA BBBB CCCC DDDD EEEE GGGG")
+                                           title="AAAA BBBB CCCC DDDD EEEE GGGG")
     test.advance_time_10m()
 
     assert(len(test_submission2.reports) == 1)
@@ -45,23 +47,24 @@ def test_repost_detector(create_bot):
 
     # Test short word elimination
     test_submission3 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAA BBBB CCCC DDDD")
+                                           title="AAAA BBBB CCCC DDDD")
 
     assert(len(test_submission3.reports) == 0)
 
     # Jump in time one month
     test.advance_time(2592000)
     test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAB BBBC CCCD DDDE EEEG GGGF")
+                        title="AAAB BBBC CCCD DDDE EEEG GGGF")
     # Give the chance to remove a post from storage due to being too old
     test.advance_time_30m()
 
     # Test user ignore
     test_submission4 = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="automoderator",
-        title="AAAA BBBB CCCC DDDD EEEE GGGG")
+                                           title="AAAA BBBB CCCC DDDD EEEE GGGG")
     test.advance_time_10m()
 
     assert(len(test_submission4.reports) == 0)
+
 
 def test_invalid_cfg(create_bot):
     wiki_flair_posts = """
@@ -72,7 +75,8 @@ def test_invalid_cfg(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
     # Update flair posts control panel
     sub.edit_wiki("control_panel", enable_flair_posts)
-    sub.edit_wiki("repost_detector", wiki_flair_posts, author="wikieditboy_repost")
+    sub.edit_wiki("repost_detector", wiki_flair_posts,
+                  author="wikieditboy_repost")
 
     test.advance_time_30m()
 

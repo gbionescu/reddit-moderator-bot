@@ -8,6 +8,7 @@ from modbot.storage import get_stored_dict
 from modbot.utils import BotThread, cron_next
 logger = botlog("mod_sub")
 
+
 class DispatchAll():
     class HookContainer():
         def __init__(self, to_call):
@@ -74,7 +75,8 @@ class DispatchAll():
                 if el.first:
                     if start_time + int(el.first) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True, {**self.extra_args, **extra_args})
+                        self.to_call(
+                            el, True, {**self.extra_args, **extra_args})
 
                         # Delete the attribute so that it's not triggered again
                         el.first = None
@@ -83,7 +85,8 @@ class DispatchAll():
                     # Check if 'period' has passed since last executed
                     if el.last_exec + int(el.period) < tnow:
                         el.set_last_exec(tnow)
-                        self.to_call(el, True, {**self.extra_args, **extra_args})
+                        self.to_call(
+                            el, True, {**self.extra_args, **extra_args})
 
                 if el.cron:
                     # Check if we know when this should be triggered
@@ -93,7 +96,8 @@ class DispatchAll():
                     # Check if it's cron trigger time
                     if tnow > el.next_cron_trigger:
                         # Call it
-                        self.to_call(el, True, {**self.extra_args, **extra_args})
+                        self.to_call(
+                            el, True, {**self.extra_args, **extra_args})
                         # Calculate next event
                         el.next_cron_trigger = cron_next(el.cron)
 
@@ -117,7 +121,6 @@ class DispatchAll():
             """
             for cbk in self.callbacks_mlog:
                 self.to_call(cbk, False, {**self.extra_args, **extra_args})
-
 
     def __repr__(self):
         return "generic"
@@ -151,20 +154,22 @@ class DispatchAll():
                 else:
                     file_name = element.plugin_name
 
-                args["storage"] = get_stored_dict(args["subreddit_name"], file_name)
+                args["storage"] = get_stored_dict(
+                    args["subreddit_name"], file_name)
 
             for farg in element.args:
                 if farg in args.keys():
                     cargs[farg] = args[farg]
                 else:
-                    logger.error("Function %s requested %s, but it was not found in %s" % \
-                        (element.func, farg, str(args.keys())))
+                    logger.error("Function %s requested %s, but it was not found in %s" %
+                                 (element.func, farg, str(args.keys())))
                     return
 
             try:
                 element.func(**cargs)
             except Exception:
-                logging.exception("Exception when running " + str(element.func))
+                logging.exception(
+                    "Exception when running " + str(element.func))
         if with_thread:
             BotThread(
                 name="periodic_" + str(el.func),
@@ -185,10 +190,12 @@ class DispatchAll():
         for cbk in func_list:
             if cbk.wiki:
                 if cbk.wiki.wiki_page not in self.wiki_pages_callbacks:
-                    self.wiki_pages_callbacks[cbk.wiki.wiki_page] = self.HookContainer(self.call_plugin_func)
+                    self.wiki_pages_callbacks[cbk.wiki.wiki_page] = self.HookContainer(
+                        self.call_plugin_func)
 
                 self.wiki_pages_callbacks[cbk.wiki.wiki_page].add_hook(cbk)
-                self.logger.debug("Adding it to wiki page: " + cbk.wiki.wiki_page + " on " + str(self))
+                self.logger.debug("Adding it to wiki page: " +
+                                  cbk.wiki.wiki_page + " on " + str(self))
             else:
                 self.generic_hooks.add_hook(cbk)
                 self.logger.debug("Adding it to as generic to " + str(self))
@@ -199,7 +206,8 @@ class DispatchAll():
         for wiki in self.enabled_wikis:
             if wiki in self.wiki_pages_callbacks:
                 # Add it to the enabled wiki hook list
-                self.enabled_wiki_hooks.merge_container(self.wiki_pages_callbacks[wiki])
+                self.enabled_wiki_hooks.merge_container(
+                    self.wiki_pages_callbacks[wiki])
 
     def enable_wiki(self, wiki):
         if wiki not in self.enabled_wikis:
@@ -260,6 +268,7 @@ class DispatchAll():
         self.generic_hooks.run_modlog(modlog, extra)
         self.enabled_wiki_hooks.run_modlog(modlog, extra)
 
+
 class DispatchSubreddit(DispatchAll):
     def __repr__(self):
         return self.subreddit.display_name
@@ -314,11 +323,12 @@ class DispatchSubreddit(DispatchAll):
         Get the control panel content
         """
         try:
-            self.crt_control_panel = self.subreddit.wiki("control_panel").get_content()
+            self.crt_control_panel = self.subreddit.wiki(
+                "control_panel").get_content()
         except:
             import traceback
             traceback.print_exc()
-            return ""
+            return None
         return self.crt_control_panel
 
     def set_control_panel(self, content):

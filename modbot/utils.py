@@ -4,10 +4,12 @@ import configparser
 import tzcron
 import pytz
 
+
 class BotThread():
     """
     Wrapper over Thread class
     """
+
     def __init__(self, target=None, name=None, args=()):
         self.obj = threading.Thread(
             target=target,
@@ -26,6 +28,7 @@ class BotThread():
     def isAlive(self):
         self.obj.isAlive()
 
+
 class timedata:
     """
     Utilities for time ranges
@@ -37,11 +40,13 @@ class timedata:
     SEC_IN_DAY = SEC_IN_MIN * MIN_IN_HOUR * HOUR_IN_DAY
     SEC_IN_WEEK = SEC_IN_DAY * 7
 
+
 def get_utcnow():
     """
     Wraps datetime.utcnow calls
     """
     return pytz.utc.localize(datetime.datetime.utcnow())
+
 
 def utcnow():
     """
@@ -49,11 +54,20 @@ def utcnow():
     """
     return (get_utcnow() - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
 
+def timestamp_string(timestamp):
+    """
+    Converts a timestamp to string
+    """
+    date = pytz.utc.localize(datetime.datetime.fromtimestamp(timestamp))
+
+    return date.strftime("%Y-%m-%d / %H:%M:%S") + " " + str(date.tzinfo)
+
 def date():
     """
     Returns current date as formatted string
     """
     return get_utcnow().strftime("%Y-%m-%d / %H:%M:%S")
+
 
 def calc_overlap(list1, list2):
     """
@@ -65,6 +79,7 @@ def calc_overlap(list1, list2):
             (1.0 - len(set(list2).difference(set(list1))) / len(list2)) * 100
     return 0, 0
 
+
 def calc_overlap_avg(list1, list2):
     """
     Calculate how much two lists overlap.
@@ -72,6 +87,7 @@ def calc_overlap_avg(list1, list2):
     v1, v2 = calc_overlap(list1, list2)
 
     return (v1 + v2) / 2
+
 
 def parse_wiki_content(crt_content, parser="CFG_INI"):
     """
@@ -95,6 +111,7 @@ def parse_wiki_content(crt_content, parser="CFG_INI"):
 
         return parser
 
+
 def prepare_wiki_content(content, indented=True):
     """
     Set wiki page content
@@ -104,6 +121,7 @@ def prepare_wiki_content(content, indented=True):
         content = "    ".join(i + "\n" for i in lines)
 
     return content
+
 
 def cron_next(param):
     # Get current date as set by the source

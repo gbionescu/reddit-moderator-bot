@@ -13,6 +13,7 @@ cmd_prefix = "/"
 
 logger = botlog("commands")
 
+
 class command():
     def __repr__(self):
         return "%s - %s" % (self.name, self.doc.strip())
@@ -26,12 +27,14 @@ class command():
 
         self.plugin_name = pathlib.Path(path).name.replace(".py", "")
 
+
 def add_inbox_command(plugin_func):
     """
     Add an inbox command to the framework
     """
     if plugin_func.name in inbox_cmd_list:
-        logger.error("Command %s already registered, ignoring" % plugin_func.name)
+        logger.error("Command %s already registered, ignoring" %
+                     plugin_func.name)
         return
 
     logger.debug("Adding inbox command %s" % plugin_func.name)
@@ -49,12 +52,14 @@ def add_inbox_command(plugin_func):
     else:
         raw_cmd_list[new_obj.name] = new_obj
 
+
 def add_report_command(plugin_func):
     """
     Add an report command to the framework
     """
     if plugin_func.name in report_cmd_list:
-        logger.error("Command %s already registered, ignoring" % plugin_func.name)
+        logger.error("Command %s already registered, ignoring" %
+                     plugin_func.name)
         return
 
     logger.debug("Adding inbox command %s" % plugin_func.name)
@@ -72,6 +77,7 @@ def add_report_command(plugin_func):
     else:
         raw_cmd_list[new_obj.name] = new_obj
 
+
 def set_prefix(prefix):
     """
     Set command prefix
@@ -81,13 +87,15 @@ def set_prefix(prefix):
     logger.debug("Set prefix to " + prefix)
     cmd_prefix = prefix
 
+
 def _call_target(target, message, avail_args):
     call_args = {}
 
     # Build function parameters
     for req in target.requested_args:
         if req not in avail_args:
-            raise ValueError("Parameter %s does not exist when calling %s" % (req, target.func))
+            raise ValueError(
+                "Parameter %s does not exist when calling %s" % (req, target.func))
         call_args[req] = avail_args[req]
 
     try:
@@ -96,13 +104,15 @@ def _call_target(target, message, avail_args):
         import traceback
         traceback.print_exc()
 
+
 def call_target(target, message, plugin_args):
     """
     Launch a thread for each plugin
     """
     BotThread(_call_target,
-        "inbox_plugin",
-        (target, message, plugin_args,))
+              "inbox_plugin",
+              (target, message, plugin_args,))
+
 
 def execute_list(item, plugin_args, cmd_list):
     # Get the body
@@ -145,11 +155,14 @@ def execute_list(item, plugin_args, cmd_list):
 
         if hook.has_rights_on(right, text):
             # Once we figured out what to call, add storage
-            plugin_args["storage"] = get_stored_dict("all", cmd_list[text].plugin_name)
+            plugin_args["storage"] = get_stored_dict(
+                "all", cmd_list[text].plugin_name)
 
             call_target(cmd_list[text], item, plugin_args)
         else:
-            logger.error("User %s tried running unprivileged command %s" % (item.author, text))
+            logger.error(
+                "User %s tried running unprivileged command %s" % (item.author, text))
+
 
 def execute_report_command(report, plugin_args):
     args = dict(plugin_args)
@@ -158,12 +171,14 @@ def execute_report_command(report, plugin_args):
     args["event"] = report
     execute_list(report, args, report_cmd_list)
 
+
 def execute_inbox_command(message, plugin_args):
     args = dict(plugin_args)
     args["is_report"] = False
     args["message"] = message
     args["event"] = message
     execute_list(message, args, inbox_cmd_list)
+
 
 def get_rights_for_user(user, bot_owner):
     rights = hook.permission.ANY

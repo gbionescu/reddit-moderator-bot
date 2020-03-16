@@ -24,6 +24,7 @@ logger = botlog("notify_on_word")
 # Store wiki configuration per subreddit
 wiki_config = {}
 
+
 class PluginCfg():
     def __init__(self, config):
         word_list = ast.literal_eval(config["word_list"])
@@ -36,6 +37,7 @@ class PluginCfg():
 
         self.ignore_users = ast.literal_eval(config["ignore_users"])
 
+
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for notify_on_word, subreddit %s" % sub)
     cont = parse_wiki_content(change.content)
@@ -46,16 +48,18 @@ def wiki_changed(sub, change):
         # If it's a recent edit, notify the author
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
-                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
+                                  "It does not contain the [Setup] section. Please read the documentation on how to configure it")
         return
 
     wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
 
+
 wiki = hook.register_wiki_page(
-    wiki_page = "word_notifier",
-    description = "Send modmail when a specified word is detected",
-    documentation = plugin_documentation,
-    wiki_change_notifier = wiki_changed)
+    wiki_page="word_notifier",
+    description="Send modmail when a specified word is detected",
+    documentation=plugin_documentation,
+    wiki_change_notifier=wiki_changed)
+
 
 def check_words(text, config, author):
     if not author:
@@ -71,6 +75,7 @@ def check_words(text, config, author):
 
     return found_words
 
+
 @hook.submission()
 def new_post(submission, reddit):
     # Skip link posts
@@ -81,9 +86,11 @@ def new_post(submission, reddit):
         word_list = check_words(submission.selftext, config, submission.author)
 
         if len(word_list) > 0:
-            message_body = "Word list: %s\nLink: %s" % (str(word_list), submission.shortlink)
+            message_body = "Word list: %s\nLink: %s" % (
+                str(word_list), submission.shortlink)
             get_subreddit(subreddit_name).send_modmail(
                 "Given word/words has/have been found in a submission", message_body)
+
 
 @hook.comment()
 def new_comment(comment, reddit):
@@ -92,6 +99,7 @@ def new_comment(comment, reddit):
         word_list = check_words(comment.body, config, comment.author)
 
         if len(word_list) > 0:
-            message_body = "Word list: %s\nLink: %s" % (str(word_list), comment.permalink)
+            message_body = "Word list: %s\nLink: %s" % (
+                str(word_list), comment.permalink)
             get_subreddit(subreddit_name).send_modmail(
                 "Given word/words has/have been found in a comment", message_body)

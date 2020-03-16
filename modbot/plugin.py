@@ -19,16 +19,17 @@ from modbot.reddit_wrapper import get_moderated_subs, get_subreddit, start_tick,
 
 logger = botlog("plugin")
 
-DISPATCH_ANY = 0 # Generic key for dispatching items to all non-bound hooks
+DISPATCH_ANY = 0  # Generic key for dispatching items to all non-bound hooks
+
 
 class plugin_manager():
     # Dictionary of items that can be passed to plugins
     def __init__(self,
-        bot_inst,
-        master_subreddit,
-        path_list=None,
-        bot_config={},
-        db_params={}):
+                 bot_inst,
+                 master_subreddit,
+                 path_list=None,
+                 bot_config={},
+                 db_params={}):
         """
         Class that manages plugins from a given list of paths.
         :param bot_inst: bot instance
@@ -67,7 +68,8 @@ class plugin_manager():
         self.plugin_args["reddit"] = self
         self.plugin_args["config"] = self.config
         self.plugin_args["db"] = self.db
-        self.plugin_args["bot_owner"] = get_user(self.config.get("owner", "owner"))
+        self.plugin_args["bot_owner"] = get_user(
+            self.config.get("owner", "owner"))
 
         # Set start time
         self.start_time = utils.utcnow()
@@ -133,7 +135,8 @@ class plugin_manager():
                 if sub not in self.dispatchers:
                     logger.debug("Creating dispatcher for subreddit: " + sub)
                     self.dispatchers[sub] = \
-                        DispatchSubreddit(self.get_subreddit(sub), self.plugin_args)
+                        DispatchSubreddit(
+                            self.get_subreddit(sub), self.plugin_args)
 
                 self.dispatchers[sub].add_callback([func])
 
@@ -166,14 +169,16 @@ class plugin_manager():
         basename = os.path.basename(fname)
 
         # Build file name
-        plugin_name = "%s.%s" % (os.path.basename(os.path.dirname(fname)), basename)
+        plugin_name = "%s.%s" % (os.path.basename(
+            os.path.dirname(fname)), basename)
         plugin_name = plugin_name.replace(".py", "")
 
         try:
             plugin_module = None
             # If file was previously imported, reload
             if plugin_module in self.modules or plugin_name in sys.modules.keys():
-                plugin_module = importlib.reload(importlib.import_module(plugin_name))
+                plugin_module = importlib.reload(
+                    importlib.import_module(plugin_name))
             else:
                 # Import the file
                 plugin_module = importlib.import_module(plugin_name)
@@ -182,7 +187,7 @@ class plugin_manager():
             return plugin_module
         except Exception as e:
             import traceback
-            logger.debug("Error loading %s:\n\t%s" %(fname, e))
+            logger.debug("Error loading %s:\n\t%s" % (fname, e))
             traceback.print_exc()
             return
 
@@ -224,12 +229,13 @@ class plugin_manager():
         if not submission.author:
             return
 
-        #if self.given_watched_subs.get(submission.subreddit_name, None):
+        # if self.given_watched_subs.get(submission.subreddit_name, None):
         self.dispatchers[DISPATCH_ANY].run_submission(submission)
 
         disp = self.dispatchers.get(submission.subreddit_name, None)
         if disp:
-            self.dispatchers[submission.subreddit_name].run_submission(submission)
+            self.dispatchers[submission.subreddit_name].run_submission(
+                submission)
 
     def feed_comms(self, comment):
         """
@@ -242,7 +248,7 @@ class plugin_manager():
             return
 
         # TODO clean up watched_subs
-        #if self.given_watched_subs.get(comment.subreddit_name, None):
+        # if self.given_watched_subs.get(comment.subreddit_name, None):
         self.dispatchers[DISPATCH_ANY].run_comment(comment)
 
         disp = self.dispatchers.get(comment.subreddit_name, None)

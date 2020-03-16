@@ -20,11 +20,12 @@ domains = ["google.com", "blabla.co.uk"]
 ignore_users = ["AutoModerator"]
 """
 
-MAX_ACTION_TIME = timedata.SEC_IN_MIN # Maximum time to wait to take an action
+MAX_ACTION_TIME = timedata.SEC_IN_MIN  # Maximum time to wait to take an action
 logger = botlog("changed_title")
 
 # Store wiki configuration per subreddit
 wiki_config = {}
+
 
 class PluginCfg():
     def __init__(self, config):
@@ -36,7 +37,8 @@ class PluginCfg():
         if "minimum_overlap_percent" not in config:
             return
 
-        self.minimum_overlap_percent = min(max(int(config["minimum_overlap_percent"]), 0), 100)
+        self.minimum_overlap_percent = min(
+            max(int(config["minimum_overlap_percent"]), 0), 100)
 
         if "domains" in config:
             self.domains = ast.literal_eval(config["domains"])
@@ -49,6 +51,7 @@ class PluginCfg():
 
         self.valid = True
 
+
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for repost_detector, subreddit %s" % sub)
     cont = parse_wiki_content(change.content)
@@ -59,15 +62,17 @@ def wiki_changed(sub, change):
         # If it's a recent edit, notify the author
         if change.recent_edit:
             change.author.send_pm("Error interpreting the updated wiki page on %s" % sub,
-                "It does not contain the [Setup] section. Please read the documentation on how to configure it")
+                                  "It does not contain the [Setup] section. Please read the documentation on how to configure it")
     else:
         wiki_config[sub.display_name] = PluginCfg(cont["Setup"])
 
+
 wiki = hook.register_wiki_page(
-    wiki_page = "changed_title",
-    description = "Check for posts that have titles different than the articles",
-    documentation = plugin_documentation,
-    wiki_change_notifier = wiki_changed)
+    wiki_page="changed_title",
+    description="Check for posts that have titles different than the articles",
+    documentation=plugin_documentation,
+    wiki_change_notifier=wiki_changed)
+
 
 @hook.submission(wiki=wiki)
 def new_post(submission, reddit, subreddit):
@@ -77,18 +82,21 @@ def new_post(submission, reddit, subreddit):
 
     # Get wiki configuration
     if subreddit.display_name not in wiki_config:
-        logger.debug("[%s] Not in wiki config %s" % (submission.shortlink, subreddit.display_name))
+        logger.debug("[%s] Not in wiki config %s" %
+                     (submission.shortlink, subreddit.display_name))
         return
     config = wiki_config[subreddit.display_name]
 
-    logger.debug("[%s] New post submitted with title: %s" % (submission.shortlink, submission.title))
+    logger.debug("[%s] New post submitted with title: %s" %
+                 (submission.shortlink, submission.title))
 
     # Get current time
     tnow = utcnow()
 
     # Don't take action on old posts
     if tnow - submission.created_utc > MAX_ACTION_TIME:
-        logger.debug("[%s] Skipped because it's too old" % (submission.shortlink))
+        logger.debug("[%s] Skipped because it's too old" %
+                     (submission.shortlink))
         return
 
     # Check if the domain is in the configured list
@@ -117,12 +125,15 @@ def new_post(submission, reddit, subreddit):
     if len(submission_title) == 0:
         return
 
-    logger.debug("[%s] Checking for editorialization\n\t%s\n\t%s" % (submission.shortlink, article_title, submission_title))
+    logger.debug("[%s] Checking for editorialization\n\t%s\n\t%s" %
+                 (submission.shortlink, article_title, submission_title))
 
     overlap_factor = calc_overlap_avg(article_title, submission_title)
 
-    logger.debug("[%s] Calculated editorialized factor %f" % (submission.shortlink, overlap_factor))
+    logger.debug("[%s] Calculated editorialized factor %f" %
+                 (submission.shortlink, overlap_factor))
 
     # If there is too little overlap, report it
     if overlap_factor < config.minimum_overlap_percent:
-        submission.report("Possible editorialization with a factor of %.2f%%" % (overlap_factor))
+        submission.report(
+            "Possible editorialization with a factor of %.2f%%" % (overlap_factor))

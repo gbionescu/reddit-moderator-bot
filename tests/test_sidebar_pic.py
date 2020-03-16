@@ -21,9 +21,11 @@ qweqweq
 qeqweqew
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_sidebar_pic(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
@@ -38,9 +40,11 @@ def test_sidebar_pic(create_bot):
     # Jump in time 23 hours and simulate one
     test.advance_time(60 * 60 * 23)
     test.advance_time_1h()
-    assert(sub.widgets.sidebar[0].mod.data[0]["linkUrl"] == "https://www.reddit.com/r/123")
+    assert(sub.widgets.sidebar[0].mod.data[0]
+           ["linkUrl"] == "https://www.reddit.com/r/123")
 
     # Jump in time 23 hours and simulate one
     test.advance_time(60 * 60 * 23)
     test.advance_time_1h()
-    assert(sub.widgets.sidebar[0].mod.data[0]["linkUrl"] == "https://www.reddit.com/r/456")
+    assert(sub.widgets.sidebar[0].mod.data[0]
+           ["linkUrl"] == "https://www.reddit.com/r/456")

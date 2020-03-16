@@ -20,8 +20,9 @@ logger = botlog("webhook_plugin")
 wiki_config = {}
 
 replaces = {
-        "@everyone": "@ everyone",
-        "@here": "@ here"}
+    "@everyone": "@ everyone",
+    "@here": "@ here"}
+
 
 class PluginCfg():
     def __init__(self, config):
@@ -31,12 +32,14 @@ class PluginCfg():
         if "submissions" in config:
             self.submissions = config["submissions"]
 
+
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for repost_detector, subreddit %s" % sub)
     cont = parse_wiki_content(change.content)
 
     if not cont:
-        change.author.send_pm("Error parsing the updated wiki page on %s" % sub)
+        change.author.send_pm(
+            "Error parsing the updated wiki page on %s" % sub)
         return
 
     try:
@@ -44,11 +47,13 @@ def wiki_changed(sub, change):
     except:
         pass
 
+
 wiki = hook.register_wiki_page(
-    wiki_page = "webhook_streamer",
-    description = "Stream items to webhooks",
-    documentation = plugin_documentation,
-    wiki_change_notifier = wiki_changed)
+    wiki_page="webhook_streamer",
+    description="Stream items to webhooks",
+    documentation=plugin_documentation,
+    wiki_change_notifier=wiki_changed)
+
 
 @hook.submission(wiki=wiki)
 def new_post(submission, subreddit_name):
@@ -68,9 +73,12 @@ def new_post(submission, subreddit_name):
         if key in title:
             title = title.replace(key, value)
 
-    text = "%s: %s by %s <%s>" % (stype, title, submission.author.name, submission.shortlink)
-    webhook = DiscordWebhook(wiki_config[subreddit_name].submissions, content=text)
+    text = "%s: %s by %s <%s>" % (
+        stype, title, submission.author.name, submission.shortlink)
+    webhook = DiscordWebhook(
+        wiki_config[subreddit_name].submissions, content=text)
     webhook.execute()
+
 
 def send_modlog(item, url):
     text = ""
@@ -78,7 +86,8 @@ def send_modlog(item, url):
     if not item.target_author:
         text = "`[%s][%s] %s` " % (item.mod_name, item.action, item.details)
     else:
-        text = "`[%s][%s][%s] %s` " % (item.mod_name, item.action, item.target_author, item.details)
+        text = "`[%s][%s][%s] %s` " % (
+            item.mod_name, item.action, item.target_author, item.details)
 
     if item.description:
         text += "`%s`" % item.description
@@ -88,6 +97,7 @@ def send_modlog(item, url):
 
     webhook = DiscordWebhook(url, content=text)
     webhook.execute()
+
 
 @hook.modlog(wiki=wiki)
 def new_modlog_item(modlog, subreddit_name):

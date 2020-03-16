@@ -7,9 +7,11 @@ enable_streamer = """
 webhook_streamer
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_webhook(create_bot):
     wiki_cfg = """
@@ -31,13 +33,13 @@ def test_webhook(create_bot):
     assert(test.get_webhook("http://webhook1") == None)
 
     # Add modlog item
-    sub.add_modlog("mod1", "dummy_target", "test", "blabla", "test description")
+    sub.add_modlog("mod1", "dummy_target", "test",
+                   "blabla", "test description")
 
     # Check again
     assert(len(test.get_webhook("http://webhook1").messages) == 1)
 
     test.advance_time_60s()
-
 
     # Check that the webhook target is None first
     # (aka does not exist because no messages have been sent)
@@ -45,7 +47,7 @@ def test_webhook(create_bot):
 
     # Create a new submissinon to test submission webhooks too
     test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1",
-        title="AAAA BBBB CCCC DDDD EEEE FFFF")
+                        title="AAAA BBBB CCCC DDDD EEEE FFFF")
 
     test.advance_time_60s()
 

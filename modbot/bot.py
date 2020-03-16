@@ -5,6 +5,7 @@ from modbot.log import add_discord_webhook
 from modbot.plugin import plugin_manager
 from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
 
+
 class bot():
     def __init__(self, bot_config_path, backend="reddit"):
         """
@@ -25,7 +26,8 @@ class bot():
         set_input_type(backend)
 
         # Set PRAW options
-        set_credentials(self.config.get("reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
+        set_credentials(self.config.get(
+            "reddit", "praw_config_section"), self.config.get("reddit", "user_agent"))
 
         # DB credentials are optional - check if present
         db_credentials = None
@@ -47,5 +49,6 @@ class bot():
             self,
             path_list=self.config.get("config", "plugin_folders").split(","),
             bot_config=self.config,
-            master_subreddit=self.config.get(section="config", option="master_subreddit"),
+            master_subreddit=self.config.get(
+                section="config", option="master_subreddit"),
             db_params=db_credentials)

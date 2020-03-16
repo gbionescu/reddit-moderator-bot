@@ -7,9 +7,11 @@ enable_flair_posts = """
 flair_posts
 """
 
+
 @pytest.fixture
 def create_bot():
     test.create_bot(TEST_SUBREDDIT)
+
 
 def test_flair_warning(create_bot):
     wiki_flair_posts = """
@@ -33,7 +35,8 @@ def test_flair_warning(create_bot):
     test.advance_time_60s()
 
     # Create a new submissinon that we will be testing against
-    test_submission = test.FakeSubmission(subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1", title="title_test")
+    test_submission = test.FakeSubmission(
+        subreddit_name=TEST_SUBREDDIT, author_name="JohnDoe1", title="title_test")
 
     # Give the bot time to send all messages
     test.advance_time_30m()
@@ -51,6 +54,7 @@ def test_flair_warning(create_bot):
 
         msg_no += 1
         user.inbox = user.inbox[1:]
+
 
 def test_auto_flair(create_bot):
     wiki_flair_posts = """
@@ -101,7 +105,7 @@ def test_auto_flair(create_bot):
         "testflair5",
         "testflair6"])
 
-    ### Test titles
+    # Test titles
     test_submission1 = test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
@@ -119,7 +123,7 @@ def test_auto_flair(create_bot):
     assert(test_submission1.flairs.set_flair_id == "testflair1")
     assert(test_submission2.flairs.set_flair_id == "testflair2")
 
-    ### Test body
+    # Test body
     test_submission3 = test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
@@ -132,7 +136,7 @@ def test_auto_flair(create_bot):
 
     assert(test_submission3.flairs.set_flair_id == "testflair3")
 
-    ### Test domain
+    # Test domain
     test_submission4 = test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
@@ -144,7 +148,7 @@ def test_auto_flair(create_bot):
 
     assert(test_submission4.flairs.set_flair_id == "testflair4")
 
-    ### Test priority
+    # Test priority
     test_submission5 = test.FakeSubmission(
         subreddit_name=TEST_SUBREDDIT,
         author_name="JohnDoe1",
@@ -154,6 +158,7 @@ def test_auto_flair(create_bot):
     test.advance_time_30m()
 
     assert(test_submission5.flairs.set_flair_id == "testflair6")
+
 
 def test_corner_cases(create_bot):
     wiki_flair_posts = """
@@ -217,6 +222,7 @@ def test_corner_cases(create_bot):
 
     assert(len(test.get_user("granular").inbox) == 0)
 
+
 def test_invalid_cfg(create_bot):
     wiki_flair_posts = """
     [Seup]
@@ -228,7 +234,8 @@ def test_invalid_cfg(create_bot):
     sub = test.get_subreddit(TEST_SUBREDDIT)
     # Update flair posts control panel
     sub.edit_wiki("control_panel", enable_flair_posts)
-    sub.edit_wiki("flair_posts", wiki_flair_posts, author="wikieditboy_flair_posts")
+    sub.edit_wiki("flair_posts", wiki_flair_posts,
+                  author="wikieditboy_flair_posts")
 
     test.advance_time_30m()
 

@@ -5,6 +5,7 @@ import base64
 from modbot import hook
 from modbot.reddit_wrapper import get_subreddit
 
+
 @hook.report_command()
 def get_notes(report):
     """
@@ -17,14 +18,16 @@ def get_notes(report):
     unotes = json.loads(wiki_content)
 
     if unotes["ver"] != 6:
-        report.author.send_pm("Usernotes decode error", "Invalid usernotes version found, please upgrade")
+        report.author.send_pm("Usernotes decode error",
+                              "Invalid usernotes version found, please upgrade")
         return
 
     data_raw = zlib.decompress(base64.b64decode(unotes["blob"])).decode()
     data = json.loads(data_raw)
 
     if report.author_name not in data:
-        report.author.send_pm("Usernotes not found for %s" % report.author_name, "No notes found")
+        report.author.send_pm("Usernotes not found for %s" %
+                              report.author_name, "No notes found")
         return
 
     reply = "User %s has the following notes:\n\n" % report.author_name
