@@ -306,6 +306,9 @@ class FakeSubmission():
         def sticky(self, state=False, bottom=False):
             self._sticky = state
 
+        def approve(self):
+            pass
+
     crt_id = 1 # static member to keep track of the global submission ID
 
     def __init__(self, subreddit_name, author_name, title, body=None, url=None):

@@ -4,12 +4,14 @@ import base36
 import importlib
 from modbot.log import botlog, loglevel
 from modbot.utils import utcnow, timedata, BotThread, get_utcnow
-from modbot.storage import dsdict
+from modbot.storage import dsdict, get_stored_dict
 from modbot.input.rpc_server import create_server
 
 logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
 watch_dict = {}  # maps watched subreddits to threads
+
+posted_things_body = get_stored_dict("all", "posted")
 
 backend = None
 all_data = None
@@ -121,6 +123,11 @@ class submission():
         return self._raw.selftext
 
     def edit(self, body):
+        if self.shortlink in posted_things_body and \
+                body == posted_things_body[self.shortlink]:
+            return
+
+        posted_things_body[self.shortlink] = body
         self._raw.edit(body)
 
     @property
@@ -604,7 +611,9 @@ def get_subreddit(name):
 
 
 def get_user(name):
-    return user(backend.get_reddit().redditor(name))
+    if name:
+        return user(backend.get_reddit().redditor(name))
+    return None
 
 
 def get_moderated_subs():
@@ -659,6 +668,7 @@ def format_string(to_format):
 
     return to_format
 
+
 def post_submission_text(sub_name, title, body, sticky):
     post_subreddit = get_subreddit(sub_name)
 
@@ -671,10 +681,25 @@ def post_submission_text(sub_name, title, body, sticky):
         selftext=body,
         send_replies=False)
 
-    if sticky:
-        posted.mod.sticky(state=True, bottom=True)
+    # Get the posted submission
+    check_posted = get_submission(posted.shortlink)
 
-    return submission(posted)
+    # Check if it was removed
+    if not check_posted.is_crosspostable:
+        try:
+            posted.mod.approve()
+        except:
+            audit.error("Error approving post")
+
+    if sticky:
+        try:
+            posted.mod.sticky(state=True, bottom=True)
+        except:
+            audit.error("Error stickying post")
+
+    bot_posted = submission(posted)
+    posted_things_body[bot_posted.shortlink] = body
+    return bot_posted
 
 
 def new_report(item, author, body):
