@@ -131,16 +131,19 @@ def wiki_changed(sub, change):
 
     # Read the setup section
     cfg = Posts()
+    wiki_config[sub.display_name] = cfg
 
     # Read each autoflair section
     for section in cont:
         if section == "DEFAULT":
             continue
         # Add it to config
-        cfg.add_post(SchedPost(cont[section], section))
+        new_post = SchedPost(cont[section], section)
+        cfg.add_post(new_post)
+        logger.debug("Added %s to %s" % (new_post.name, sub))
 
+    logger.debug("There are %d scheduled posts on %s" % (len(cfg.posts), sub))
     # Save the config
-    wiki_config[sub.display_name] = cfg
     logger.debug("Added config to wiki_config. Current list: %s" %
                  str(wiki_config.keys()))
 
@@ -514,6 +517,7 @@ def scheduled_posts(storage):
             timeframe = utcnow() - post.cron_next
             if timeframe > 0 and timeframe < MAX_TIME_OFFSET:
 
+                post.cron_next = cron_next(post.interval)
                 something_changed = True
 
                 if post.body:
@@ -522,8 +526,6 @@ def scheduled_posts(storage):
                     post_with_wiki_body(storage, sub_name, post.title, post.wikibody, post.sticky)
                 elif post.clonepost:
                     post_with_clone_body(storage, sub_name, post.title, post.clonepost, post.sticky)
-
-            post.cron_next = cron_next(post.interval)
 
         # If a post was posted then the scheduled time has changed
         # Update the status wiki
