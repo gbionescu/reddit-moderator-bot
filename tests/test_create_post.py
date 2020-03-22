@@ -13,7 +13,7 @@ def test_create_post(create_bot):
     # Test basic commands
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/create_post --subreddit=ble --sticky --title test1 test2 test3 --body zzz ddd")
+        "/create_post --subreddit=testsub123 --sticky --title test1 test2 test3 --body zzz ddd")
     test.advance_time_10m()
 
     _, body = test.get_user("mod1").inbox[-1]
@@ -96,7 +96,7 @@ def test_clone_post(create_bot):
 
     test.get_reddit().inbox.add_message(
         "mod1",
-        "/clone_post --subreddit=ble --sticky --title=test2 --sub_link=%s" % test_submission.shortlink)
+        "/clone_post --subreddit=testsub123 --sticky --title=test2 --sub_link=%s" % test_submission.shortlink)
     test.advance_time_10m()
 
     _, body = test.get_user("mod1").inbox[-1]
