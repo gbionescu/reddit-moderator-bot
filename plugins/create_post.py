@@ -2,7 +2,7 @@ import argparse
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import parse_wiki_content, cron_next, utcnow, timestamp_string
-from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit
+from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit, get_moderated_subs_for
 
 plugin_documentation = r"""
 This plugin allows mods to schedule posts at regular intervals.
@@ -131,19 +131,16 @@ def wiki_changed(sub, change):
 
     # Read the setup section
     cfg = Posts()
-    wiki_config[sub.display_name] = cfg
 
     # Read each autoflair section
     for section in cont:
         if section == "DEFAULT":
             continue
         # Add it to config
-        new_post = SchedPost(cont[section], section)
-        cfg.add_post(new_post)
-        logger.debug("Added %s to %s" % (new_post.name, sub))
+        cfg.add_post(SchedPost(cont[section], section))
 
-    logger.debug("There are %d scheduled posts on %s" % (len(cfg.posts), sub))
     # Save the config
+    wiki_config[sub.display_name] = cfg
     logger.debug("Added config to wiki_config. Current list: %s" %
                  str(wiki_config.keys()))
 
@@ -249,6 +246,12 @@ def create_post(message, cmd_args, storage):
             not args.title:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
+    # Check if the author moderates targeted sub
+    if args.subreddit not in get_moderated_subs_for(message.author.name):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
+        return
+
     if not args.body and not args.wikibody:
         message.author.send_pm(
             "Needs either --body or --wikibody", parser.print_help())
@@ -306,6 +309,12 @@ def clone_post(message, cmd_args, storage):
             not args.sub_link:
         message.author.send_pm("Invalid parameters", parser.print_help())
 
+    # Check if the author moderates targeted sub
+    if args.subreddit not in get_moderated_subs_for(message.author.name):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
+        return
+
     title = args.title
     if type(args.title) == list:
         title = " ".join(args.title)
@@ -336,6 +345,12 @@ def integrate_comment(message, cmd_args, storage):
         storage["posts"] = []
 
     sub = get_submission(args.sub_link)
+
+    # Check if the author moderates targeted sub
+    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
+        return
 
     # Get submission from storage
     target = None
@@ -388,6 +403,12 @@ def nointegrate_comment(message, cmd_args, storage):
 
     sub = get_submission(args.sub_link)
 
+    # Check if the author moderates targeted sub
+    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
+        return
+
     # Get submission from storage
     target = None
     for elem in storage["posts"]:
@@ -436,6 +457,12 @@ def resticky(message, cmd_args, storage):
         storage["posts"] = []
 
     sub = get_submission(args.sub_link)
+
+    # Check if the author moderates targeted sub
+    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
+        return
 
     # Get submission from storage
     target = None
@@ -517,7 +544,6 @@ def scheduled_posts(storage):
             timeframe = utcnow() - post.cron_next
             if timeframe > 0 and timeframe < MAX_TIME_OFFSET:
 
-                post.cron_next = cron_next(post.interval)
                 something_changed = True
 
                 if post.body:
@@ -526,6 +552,8 @@ def scheduled_posts(storage):
                     post_with_wiki_body(storage, sub_name, post.title, post.wikibody, post.sticky)
                 elif post.clonepost:
                     post_with_clone_body(storage, sub_name, post.title, post.clonepost, post.sticky)
+
+            post.cron_next = cron_next(post.interval)
 
         # If a post was posted then the scheduled time has changed
         # Update the status wiki

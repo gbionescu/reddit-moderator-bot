@@ -407,9 +407,16 @@ class FakeUser():
     def __init__(self, name):
         self.name = name
         self.inbox = []
+        self.moderator_subs = []
 
     def message(self, subject, text):
         self.inbox.append((subject, text))
+
+    def moderator_subreddits(self):
+        return self.moderator_subs
+
+    def add_moderated_sub(self, sub):
+        self.moderator_subs.append(sub)
 
 class FakeModerator():
     def __init__(self):
@@ -700,6 +707,9 @@ def set_moderated_subs(lst):
 
 def set_moderator_for_sub(sub, lst):
     moderator_for_sub[sub] = lst
+
+    for mod in lst:
+        get_user(mod).add_moderated_sub(get_subreddit(sub))
 
 def get_webhook(url):
     if url in cache_webhooks:
