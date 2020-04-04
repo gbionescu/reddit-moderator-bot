@@ -2,11 +2,11 @@ import enum
 import pathlib
 import inspect
 
-from modbot.log import botlog
+from modbot.log import botlog, loglevel
 
 callbacks = []
 plugins_with_wikis = []
-logger = botlog('hook')
+logger = botlog('hook', file_level=loglevel.INFO)
 hook_rights = {}  # Map of non standard hook rights
 
 
