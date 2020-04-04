@@ -74,6 +74,7 @@ The body is given by copying a reddit post from https://redd.it/randompost
 
 MAX_TIME_OFFSET = 90
 
+
 class SchedPost():
     def __init__(self, data, name):
         self.title = data.get("title", None)
@@ -93,12 +94,12 @@ class SchedPost():
             self.valid = False
 
         if not self.interval or \
-            not self.title:
+                not self.title:
             self.valid = False
 
         if not self.body and \
-            not self.wikibody and \
-            not self.clonepost:
+                not self.wikibody and \
+                not self.clonepost:
             self.valid = False
 
 
@@ -115,15 +116,19 @@ class Posts():
         for post in self.posts:
             yield post
 
+
 wiki_config = {}
+
 
 def update_posts_status(sub, cfg):
     wiki_page = ""
     for post in cfg.get_posts():
-        wiki_page += "%s will be posted at %s\n" % (post.name, timestamp_string(post.cron_next))
+        wiki_page += "%s will be posted at %s\n" % (
+            post.name, timestamp_string(post.cron_next))
 
     subreddit = get_subreddit(sub)
     subreddit.wiki("schedule_posts_status").edit(wiki_page)
+
 
 def wiki_changed(sub, change):
     logger.debug("Wiki changed for create_post, subreddit %s" % sub)
@@ -146,6 +151,7 @@ def wiki_changed(sub, change):
 
     update_posts_status(sub.display_name, cfg)
 
+
 # Register wiki page
 wiki = hook.register_wiki_page(
     wiki_page="schedule_posts",
@@ -154,6 +160,7 @@ wiki = hook.register_wiki_page(
     wiki_change_notifier=wiki_changed)
 
 logger = botlog("create_post")
+
 
 def create_new_elem():
     new_elem = {}
@@ -166,6 +173,7 @@ def create_new_elem():
     new_elem["wikibody"] = ""
 
     return new_elem
+
 
 def post_submission(storage, subreddit, title, body, sticky):
     posted = post_submission_text(
@@ -191,6 +199,7 @@ def post_submission(storage, subreddit, title, body, sticky):
     storage["posts"].append(new_elem)
 
     return new_elem
+
 
 def post_with_raw_body(storage, subreddit, title, body, sticky):
     posted = post_submission(storage, subreddit, title, body, sticky)
@@ -266,7 +275,8 @@ def create_post(message, cmd_args, storage):
     wiki_name = ""
     if args.body:
         body = args.body
-        posted = post_with_wiki_body(storage, args.subreddit, title, wiki_name, args.sticky)
+        posted = post_with_wiki_body(
+            storage, args.subreddit, title, wiki_name, args.sticky)
 
         if type(body) == list:
             body = " ".join(body)
@@ -279,14 +289,16 @@ def create_post(message, cmd_args, storage):
 
         # Get the wiki content
         body = sub.wiki(wiki_name).content
-        posted = post_with_wiki_body(storage, args.subreddit, title, wiki_name, args.sticky)
+        posted = post_with_wiki_body(
+            storage, args.subreddit, title, wiki_name, args.sticky)
 
     if not posted:
         logger.error("None post returned")
         return
 
     logger.debug("Created a new post at %s" % posted["shortlink"])
-    message.author.send_pm("Create post result", "Done: %s" % posted["shortlink"])
+    message.author.send_pm("Create post result",
+                           "Done: %s" % posted["shortlink"])
 
 
 @hook.command(permission=hook.permission.MOD)
@@ -320,10 +332,12 @@ def clone_post(message, cmd_args, storage):
         title = " ".join(args.title)
 
     # Post it
-    posted = post_with_clone_body(storage, args.subreddit, title, args.sub_link, args.sticky)
+    posted = post_with_clone_body(
+        storage, args.subreddit, title, args.sub_link, args.sticky)
 
     logger.debug("Created a new post at %s" % posted["shortlink"])
-    message.author.send_pm("Create post result", "Done: %s" % posted["shortlink"])
+    message.author.send_pm("Create post result",
+                           "Done: %s" % posted["shortlink"])
 
 
 @hook.command(permission=hook.permission.MOD)
@@ -347,7 +361,7 @@ def integrate_comment(message, cmd_args, storage):
     sub = get_submission(args.sub_link)
 
     # Check if the author moderates targeted sub
-    if message.author.name not in get_moderators_for_sub(args.subreddit):
+    if message.author.name not in get_moderators_for_sub(sub.subreddit.display_name):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -404,7 +418,7 @@ def nointegrate_comment(message, cmd_args, storage):
     sub = get_submission(args.sub_link)
 
     # Check if the author moderates targeted sub
-    if message.author.name not in get_moderators_for_sub(args.subreddit):
+    if message.author.name not in get_moderators_for_sub(sub.subreddit.display_name):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -532,6 +546,7 @@ def gather_body(submission, stored):
 
     submission.edit(all_body)
 
+
 @hook.periodic(period=30)
 def scheduled_posts(storage):
     # For each subreddit
@@ -547,11 +562,14 @@ def scheduled_posts(storage):
                 something_changed = True
 
                 if post.body:
-                    post_with_raw_body(storage, sub_name, post.title, post.body, post.sticky)
+                    post_with_raw_body(storage, sub_name,
+                                       post.title, post.body, post.sticky)
                 elif post.wikibody:
-                    post_with_wiki_body(storage, sub_name, post.title, post.wikibody, post.sticky)
+                    post_with_wiki_body(storage, sub_name,
+                                        post.title, post.wikibody, post.sticky)
                 elif post.clonepost:
-                    post_with_clone_body(storage, sub_name, post.title, post.clonepost, post.sticky)
+                    post_with_clone_body(
+                        storage, sub_name, post.title, post.clonepost, post.sticky)
 
             post.cron_next = cron_next(post.interval)
 
