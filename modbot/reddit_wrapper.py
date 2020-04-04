@@ -651,19 +651,17 @@ def get_moderator_users():
     cache_data["moderator_users"].mark_updated()
     return cache_data["moderator_users"].opaque
 
-def get_moderated_subs_for(username):
+def get_moderators_for_sub(sub):
     """
-    Returns a list of subreddit moderated by the given user
+    Returns a list of mods for a subreddit
     """
+    mods = []
 
-    moderated_subs_list = []
-    for i in get_user(username)._raw.moderator_subreddits():
-        if i.display_name.startswith("u_"):
-            continue
+    sub = backend.get_reddit().subreddit(sub)
+    for mod in sub.moderator():
+        mods.append(str(mod))
 
-        moderated_subs_list.append(i.display_name)
-
-    return moderated_subs_list
+    return mods
 
 
 def get_comment(id):

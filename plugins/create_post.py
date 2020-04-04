@@ -2,7 +2,7 @@ import argparse
 from modbot import hook
 from modbot.log import botlog
 from modbot.utils import parse_wiki_content, cron_next, utcnow, timestamp_string
-from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit, get_moderated_subs_for
+from modbot.reddit_wrapper import post_submission_text, get_submission, get_comment, get_subreddit, get_moderators_for_sub
 
 plugin_documentation = r"""
 This plugin allows mods to schedule posts at regular intervals.
@@ -247,7 +247,7 @@ def create_post(message, cmd_args, storage):
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     # Check if the author moderates targeted sub
-    if args.subreddit not in get_moderated_subs_for(message.author.name):
+    if message.author.name not in get_moderators_for_sub(args.subreddit):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -310,7 +310,7 @@ def clone_post(message, cmd_args, storage):
         message.author.send_pm("Invalid parameters", parser.print_help())
 
     # Check if the author moderates targeted sub
-    if args.subreddit not in get_moderated_subs_for(message.author.name):
+    if message.author.name not in get_moderators_for_sub(args.subreddit):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -347,7 +347,7 @@ def integrate_comment(message, cmd_args, storage):
     sub = get_submission(args.sub_link)
 
     # Check if the author moderates targeted sub
-    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+    if message.author.name not in get_moderators_for_sub(args.subreddit):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -404,7 +404,7 @@ def nointegrate_comment(message, cmd_args, storage):
     sub = get_submission(args.sub_link)
 
     # Check if the author moderates targeted sub
-    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+    if message.author.name not in get_moderators_for_sub(args.subreddit):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
@@ -459,7 +459,7 @@ def resticky(message, cmd_args, storage):
     sub = get_submission(args.sub_link)
 
     # Check if the author moderates targeted sub
-    if sub.subreddit_name not in get_moderated_subs_for(message.author.name):
+    if message.author.name not in get_moderators_for_sub(sub.subreddit_name):
         message.author.send_pm(
             "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
