@@ -23,5 +23,5 @@ def mark_startup(wiki_pages):
     logger.info("Bot startup: %s; Plugin startup: %s\n" %
                 (start_date, utils.date()))
 
-    # Only upload the last 1000 startups
-    page.set_content("\n".join(new_content[:1000]))
+    # Only upload the last 100 startups
+    page.set_content("\n".join(new_content[:100]))
