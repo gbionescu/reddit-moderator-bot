@@ -1,7 +1,9 @@
 import logging
 import os
 import enum
+from logging.handlers import RotatingFileHandler
 
+MAX_LOG_SIZE = 1024 * 1024 * 100
 LOGS_FOLDER = "logs/"
 logs = {}
 
@@ -87,7 +89,7 @@ def botlog(name, console_level=loglevel.INFO, file_level=loglevel.DEBUG):
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
 
-    fh = logging.FileHandler("%s/%s.log" % (LOGS_FOLDER, name))
+    fh = RotatingFileHandler("%s/%s.log" % (LOGS_FOLDER, name), maxBytes=MAX_LOG_SIZE, backupCount=2)
     fh.setLevel(logging_file)
     fh.setFormatter(formatter)
 
