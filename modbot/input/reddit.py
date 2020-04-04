@@ -186,10 +186,13 @@ def thread_modlog(modlog_func):
 
 
 def get_wiki(subreddit, wiki_name):
-    return subreddit.wiki[wiki_name]
+    data = subreddit.wiki[wiki_name]
+    logger.debug("[%s/%s] Got wiki content: %s" % (subreddit.display_name, wiki_name, data))
+    return data
 
 
 def edit_wiki(subreddit, wiki_name, content):
+    logger.debug("[%s/%s] Edit wiki content: %s" % (subreddit.display_name, wiki_name, content))
     subreddit.wiki[wiki_name].edit(content)
 
 
