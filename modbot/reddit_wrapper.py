@@ -564,6 +564,14 @@ class modlog():
         self.target_permalink = self._raw.target_permalink
 
 
+def get_bot_account_name():
+    """
+    Returns the username that the bot uses
+    """
+
+    return backend.get_reddit().user.me().name
+
+
 def is_expired(name):
     """
     Check if a cached object has expired
@@ -651,6 +659,7 @@ def get_moderator_users():
     cache_data["moderator_users"].mark_updated()
     return cache_data["moderator_users"].opaque
 
+
 def get_moderators_for_sub(sub):
     """
     Returns a list of mods for a subreddit
@@ -670,6 +679,7 @@ def get_comment(id):
 
 def get_submission(url):
     return submission(backend.get_reddit().submission(url=url))
+
 
 def format_string(to_format):
     date = get_utcnow()

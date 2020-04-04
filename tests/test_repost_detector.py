@@ -27,6 +27,10 @@ def test_repost_detector(create_bot):
     sub.edit_wiki("control_panel", enable_flair_posts)
     sub.edit_wiki("repost_detector", wiki_flair_posts)
 
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
+
     # Give some time to the bot to get the new wiki configuration
     test.advance_time_60s()
 
@@ -77,6 +81,10 @@ def test_invalid_cfg(create_bot):
     sub.edit_wiki("control_panel", enable_flair_posts)
     sub.edit_wiki("repost_detector", wiki_flair_posts,
                   author="wikieditboy_repost")
+
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
 
     test.advance_time_30m()
 

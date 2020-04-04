@@ -25,6 +25,10 @@ def test_webhook(create_bot):
     sub.edit_wiki("control_panel", enable_streamer)
     sub.edit_wiki("webhook_streamer", wiki_cfg)
 
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
+
     # Give some time to the bot to get the new wiki configuration
     test.advance_time_60s()
 

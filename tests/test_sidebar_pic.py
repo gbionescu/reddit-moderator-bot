@@ -33,6 +33,11 @@ def test_sidebar_pic(create_bot):
     # Update control panel and plugin wiki
     sub.edit_wiki("control_panel", enable_wiki)
     sub.edit_wiki("change_sidebar", wiki_content)
+
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
+
     # Set fake sidebar
     sub.edit_wiki("config/sidebar", sub_decr)
     test.advance_time_10m()

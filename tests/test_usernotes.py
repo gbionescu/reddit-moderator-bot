@@ -2,10 +2,6 @@ import pytest
 import modbot.input.test as test
 
 TEST_SUBREDDIT = "testsub123"
-enable_flair_posts = """
-[Enabled Plugins]
-word_notifier
-"""
 
 
 @pytest.fixture

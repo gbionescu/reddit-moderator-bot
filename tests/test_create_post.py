@@ -133,6 +133,10 @@ def test_create_from_wiki(create_bot):
     """
     sub = test.get_subreddit(TEST_SUBREDDIT)
 
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
+
     # Update control panel and plugin wiki
     sub.edit_wiki("wiki123", content)
 
@@ -203,6 +207,11 @@ def test_sched_post(create_bot):
     # Update control panel and plugin wiki
     sub.edit_wiki("control_panel", enable_sched_posts)
     sub.edit_wiki("schedule_posts", wiki_sched_posts)
+
+    # Tell the bot to update the control panel
+    test.get_reddit().inbox.add_message(
+        "mod1", "/update_control_panel --subreddit %s" % TEST_SUBREDDIT)
+
     test.advance_time_10m()
 
     test.advance_time_1h()

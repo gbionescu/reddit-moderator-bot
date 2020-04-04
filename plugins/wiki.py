@@ -4,14 +4,15 @@
 # It also checks wiki pages for changes and notifies plugins
 #
 
+import argparse
 import sys
 from modbot import hook, utils
 from modbot.utils import parse_wiki_content, prepare_wiki_content
 from modbot.log import botlog
 from modbot.hook import plugins_with_wikis
+from modbot.reddit_wrapper import get_moderators_for_sub, get_bot_account_name
 
 logger = botlog("wiki")
-in_progress = False
 
 
 @hook.periodic(period=10)
@@ -32,9 +33,10 @@ def refresh_wikis(plugin_manager):
                         plugin_manager.dispatchers[sub].subreddit, wiki.get_change_obj())
 
 
-def init_control_panel(sub_name, plugin_list, plugin_manager):
-    # Get subreddit dispatcher
-    sub_dispatcher = plugin_manager.dispatchers[sub_name]
+def init_control_panel(sub_name, plugin_list, sub_dispatcher):
+    """
+    Initialize the control panel for a subreddit
+    """
     logger.debug("Configuring control panel for %s" % sub_dispatcher)
 
     # Get current config page
@@ -43,7 +45,10 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
 
     # Add header
     content = "###\n"
-    content += "# A plugin can be enabled by adding it in the section below\n"
+    content += "# A plugin can be enabled by adding it in the [Enabled Plugins] section.\n"
+    content += "# After changing the control panel wiki, send a message to the bot through the following link:\n"
+    content += "# https://www.reddit.com/message/compose?to={}&subject=ping&message=%2Fupdate_control_panel%20--subreddit%20{}\n".format(
+        get_bot_account_name(), sub_name)
     content += "[Enabled Plugins]\n"
 
     if not crt_content:
@@ -95,12 +100,30 @@ def init_control_panel(sub_name, plugin_list, plugin_manager):
     sub_dispatcher.set_control_panel(prepare_wiki_content(content))
 
 
+def get_plugins_for_sub(sub):
+    """
+    Get what plugins are enabled/disabled for the given sub
+    """
+    plugins_for_crt_sub = []
+    for plugin in plugins_with_wikis:
+        # If the wiki page is specific to a list of subreddits
+        # check if the current subreddit is one of them
+        if plugin.subreddits and len(plugin.subreddits) != 0 and sub not in plugin.subreddits:
+            continue
+
+        plugins_for_crt_sub.append(plugin)
+
+    plugins_for_crt_sub = sorted(
+        plugins_for_crt_sub, key=lambda m: m.wiki_page)
+
+    return plugins_for_crt_sub
+
+
 @hook.on_start
 def create_wikis(plugin_manager):
     """
     Create wiki pages
     """
-
     # Go through each moderated subreddit
     # TODO: handle situation where bot is invited to moderate after it's started
     for sub in plugin_manager.get_moderated_subs():
@@ -108,43 +131,31 @@ def create_wikis(plugin_manager):
         if sub.startswith("u_"):
             continue
 
-        plugins_for_crt_sub = []
-        for plugin in plugins_with_wikis:
-            # If the wiki page is specific to a list of subreddits
-            # check if the current subreddit is one of them
-            if plugin.subreddits and len(plugin.subreddits) != 0 and sub not in plugin.subreddits:
-                continue
-
-            if sub not in plugin_manager.dispatchers:
-                logger.error("%s not in dispatcher list" % sub)
-                sys.exit(0)
-
-            plugins_for_crt_sub.append(plugin)
-
-        plugins_for_crt_sub = sorted(
-            plugins_for_crt_sub, key=lambda m: m.wiki_page)
-
-        init_control_panel(sub, plugins_for_crt_sub, plugin_manager)
+        init_control_panel(
+            sub_name=sub,
+            plugin_list=get_plugins_for_sub(sub),
+            sub_dispatcher=plugin_manager.dispatchers[sub])
 
 
-@hook.periodic(period=30)
-def refresh_control_panels(plugin_manager):
-    global in_progress
-    print("Refresh control panels")
+@hook.command(permission=hook.permission.MOD)
+def update_control_panel(message, cmd_args, plugin_manager):
+    """
+    Update the control panel for a subreddit
+    """
+    parser = argparse.ArgumentParser(prog='update_control_panel')
+    parser.add_argument(
+        "--subreddit", help="Subreddit that should have its control panel updated")
+    args = parser.parse_args(cmd_args)
 
-    # If for some reason multiple refresh threads overlap
-    # only leave one running
-    # TODO use a semaphore
-    if in_progress:
-        print("Exiting because one is already running")
+    # Check if the author moderates targeted sub
+    if message.author.name not in get_moderators_for_sub(args.subreddit):
+        message.author.send_pm(
+            "You're not a moderator for that sub", "You can only post on moderated subreddits")
         return
-    else:
-        print("Starting control panel update")
 
-    try:
-        in_progress = True
-        create_wikis(plugin_manager)
-    finally:
-        in_progress = False
+    logger.info("Updating control panel for %s" % args.subreddit)
 
-    print("Ended control panel update")
+    init_control_panel(
+        sub_name=args.subreddit,
+        plugin_list=get_plugins_for_sub(args.subreddit),
+        sub_dispatcher=plugin_manager.dispatchers[args.subreddit])
