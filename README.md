@@ -13,7 +13,7 @@ Actions supported by plugins are triggered when:
   * a comment is submitted in a subreddit
   * at a given period of time
 
-For reference, there are a couple of plugin examples in plugins/.
+For reference, there are a multiple plugin examples in plugins/.
 
 
 In order to start up the bot, a config file named 'reddit-bot.ini' needs to be created.
