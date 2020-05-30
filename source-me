@@ -1,1 +1,1 @@
-while true; do timeout 6h bash -c "python3 -u moderator-bot.py 2>&1 | tee -a logs/console"; sleep 1; done
+while true; do timeout 24h bash -c "python3 -u moderator-bot.py 2>&1 | tee -a logs/console"; sleep 1; done
