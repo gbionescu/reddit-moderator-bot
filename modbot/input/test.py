@@ -412,7 +412,7 @@ class FakeUser():
     def message(self, subject, text):
         self.inbox.append((subject, text))
 
-    def moderator_subreddits(self):
+    def moderated(self):
         return self.moderator_subs
 
     def add_moderated_sub(self, sub):
@@ -420,7 +420,7 @@ class FakeUser():
 
 class FakeModerator():
     def __init__(self):
-        self.me_inst = FakeUser("BOT")
+        self.me_inst = get_user("BOT")
 
     def me(self):
         return self.me_inst
@@ -524,7 +524,6 @@ def create_bot(test_subreddit):
     global sub_feeder
     global com_feeder
     global time_trigger
-    global moderated_subs
     global moderator_for_sub
 
     # Cache of various objects
@@ -539,7 +538,6 @@ def create_bot(test_subreddit):
     sub_feeder = None
     com_feeder = None
     time_trigger = None
-    moderated_subs = None
     moderator_for_sub = {}
 
     # Reset time
@@ -554,8 +552,9 @@ def create_bot(test_subreddit):
     flush_storage()
 
     # Set subreddit where the bot is a moderator
-    set_moderated_subs([test_subreddit])
+    set_moderator_for_sub(test_subreddit, ["BOT"])
 
+    # Set other mods
     set_moderator_for_sub(test_subreddit, ["mod1", "mod2"])
 
     # Create the bot

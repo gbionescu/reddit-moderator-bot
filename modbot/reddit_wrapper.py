@@ -320,8 +320,8 @@ class widget():
         upload_url = self._raw.subreddit.widgets.mod.upload_image(path)
 
         new_data = {}
-        new_data["width"] = 0
-        new_data["height"] = 0
+        new_data["width"] = 276
+        new_data["height"] = 322
         new_data["linkUrl"] = picture_link
         new_data["url"] = upload_url
 
@@ -632,7 +632,7 @@ def get_moderated_subs():
         return cache_data["moderated_subs"].opaque
 
     moderator_subs_list = []
-    for i in backend.get_reddit().user.moderator_subreddits():
+    for i in backend.get_reddit().user.me().moderated():
         if i.display_name.startswith("u_"):
             continue
 
