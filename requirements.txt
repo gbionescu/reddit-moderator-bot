@@ -10,3 +10,4 @@ discord-webhook
 tzcron
 grpcio
 protobuf
+psycopg2
