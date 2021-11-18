@@ -26,7 +26,7 @@ class BotThread():
         self.obj.start()
 
     def isAlive(self):
-        self.obj.isAlive()
+        self.obj.is_alive()
 
 
 class timedata:
