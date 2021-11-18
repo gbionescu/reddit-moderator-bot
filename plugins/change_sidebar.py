@@ -123,6 +123,7 @@ def set_sidebar_new_reddit(subreddit_name, choice, local_file):
             break
 
     if not pic_widget:
+        logger.debug("No picture widget found")
         return
 
     pic_widget.set_image(local_file, "https://www.reddit.com/r/" + choice)
@@ -150,3 +151,7 @@ def do_change(storage):
     for sub_name, cfg in wiki_config.items():
         logger.debug("Changing sidebar on " + sub_name)
         set_sidebar(sub_name, cfg, storage)
+
+@hook.command()
+def reset_image(storage):
+    do_change(storage)
