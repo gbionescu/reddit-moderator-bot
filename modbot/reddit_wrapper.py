@@ -29,7 +29,7 @@ modlog_hist = None
 last_moderator_subs_check = 0
 moderator_subs_list = []
 
-COLD_WIKI_LIMIT = timedata.SEC_IN_MIN
+COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 5
 update_intervals = {
     "inbox_update": 10,
     "moderated_subs": timedata.SEC_IN_MIN * 30,
