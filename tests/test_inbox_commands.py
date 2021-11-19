@@ -18,6 +18,8 @@ def test_inbox_help(create_bot):
     # Test unauthrized command
     test.get_reddit().inbox.add_message("randomuser", "/system_status")
     test.advance_time_10m()
+    test.get_reddit().inbox.add_message("randomuser", "/reset_image")
+    test.advance_time_10m()
     assert(len(test.get_user("randomuser").inbox) == 2)
 
     test.get_reddit().inbox.add_message("bot_owner", "/help")

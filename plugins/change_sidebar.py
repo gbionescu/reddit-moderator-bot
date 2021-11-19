@@ -152,6 +152,6 @@ def do_change(storage):
         logger.debug("Changing sidebar on " + sub_name)
         set_sidebar(sub_name, cfg, storage)
 
-@hook.command()
+@hook.command(permission=hook.permission.MOD)
 def reset_image(storage):
     do_change(storage)
