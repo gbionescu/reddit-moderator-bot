@@ -1,8 +1,7 @@
 **Build status**
 
-master: [![Build Status](https://travis-ci.com/gc-plp/reddit-moderator-bot.svg?branch=master)](https://travis-ci.com/gc-plp/reddit-moderator-bot) [![codecov](https://codecov.io/gh/gc-plp/reddit-moderator-bot/branch/master/graph/badge.svg)](https://codecov.io/gh/gc-plp/reddit-moderator-bot)
+**NOT UPDATED** [![codecov](https://codecov.io/gh/gc-plp/reddit-moderator-bot/branch/master/graph/badge.svg)](https://codecov.io/gh/gc-plp/reddit-moderator-bot)
 
-dev: [![Build Status](https://travis-ci.com/gc-plp/reddit-moderator-bot.svg?branch=dev)](https://travis-ci.com/gc-plp/reddit-moderator-bot) [![codecov](https://codecov.io/gh/gc-plp/reddit-moderator-bot/branch/dev/graph/badge.svg)](https://codecov.io/gh/gc-plp/reddit-moderator-bot)
 
 # Reddit moderator bot
 
