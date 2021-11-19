@@ -11,4 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
-      run: ./docker/run.sh pytest
+      run: ./docker/run_tests.sh pytest
