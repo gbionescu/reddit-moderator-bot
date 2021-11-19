@@ -124,6 +124,9 @@ def new_yt_post(submission, reddit, subreddit):
     # Match the submission URL with the validator
     match = yt_validator.match(submission.url)
 
+    if not match:
+        return
+
     # Group 3 is the domain
     if match.group(3) not in ["youtube.com", "yout.be"]:
         return
