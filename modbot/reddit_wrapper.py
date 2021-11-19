@@ -137,6 +137,12 @@ class submission():
     def make_sticky(self):
         self._raw.mod.sticky(state=True, bottom=True)
 
+    def delete(self, spam=False, reason_id=None):
+        """
+        Delete the submission.
+        """
+        self._raw.mod.remove(spam=spam, reason_id=reason_id)
+
 
 class comment():
     """

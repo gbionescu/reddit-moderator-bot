@@ -1,6 +1,8 @@
 import base36
 import datetime
 import pytz
+import time
+
 ###############################################################################
 # Override default thread implementation
 ###############################################################################
@@ -38,10 +40,13 @@ def advance_time(val):
     global GLOBAL_TIME
     set_time(GLOBAL_TIME + val)
 
-def get_time():
+def get_time(*args, **kwargs):
+    return get_datetime().timetuple()
+
+def get_datetime(*args, **kwargs):
     return pytz.utc.localize(datetime.datetime.fromtimestamp(GLOBAL_TIME))
 
-utils.get_utcnow = get_time
+utils.get_utcnow = get_datetime
 ###############################################################################
 
 ###############################################################################
@@ -300,14 +305,18 @@ class FakeSubmission():
             self.set_flair_id = flair_id
 
     class mod():
-        def __init__(self):
+        def __init__(self, submission):
             self._sticky = False
+            self._submission = submission
 
         def sticky(self, state=False, bottom=False):
             self._sticky = state
 
         def approve(self):
             pass
+
+        def remove(self, *args, **kwargs):
+            self._submission.deleted = True
 
     crt_id = 1 # static member to keep track of the global submission ID
 
@@ -318,6 +327,7 @@ class FakeSubmission():
         self.created_utc = utils.utcnow()
         self.body = body
         self.url = url
+        self.deleted = False
 
         self.selftext = ""
         if body:
@@ -350,7 +360,7 @@ class FakeSubmission():
         if self.subreddit.sub_flairs:
             self.flairs = self.FakeFlair(self.subreddit.sub_flairs, self)
 
-        self.mod = FakeSubmission.mod()
+        self.mod = FakeSubmission.mod(self)
 
         # Announce the bot that there is a new submission
         new_all_sub(self)
@@ -396,6 +406,9 @@ class FakeSubmission():
     def edit(self, body):
         self.body = body
         self.selftext = body
+
+    def delete(self, *args, **kwargs):
+        self.deleted = True
 
 class FakeUser():
     def __repr__(self):
@@ -673,6 +686,11 @@ def advance_time_30s():
 
 def advance_time_60s():
     for _ in range(60):
+        do_tick()
+        advance_time(1)
+
+def advance_time_5m():
+    for _ in range(60*5):
         do_tick()
         advance_time(1)
 

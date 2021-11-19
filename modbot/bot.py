@@ -1,10 +1,11 @@
 import configparser
 import os
 import sys
+import modbot.ytaccess as yt
+
 from modbot.log import add_discord_webhook
 from modbot.plugin import plugin_manager
 from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
-
 
 class bot():
     def __init__(self, bot_config_path, backend="reddit"):
@@ -44,6 +45,8 @@ class bot():
             for item in self.config["webhook_discord"]:
                 # for each item in the section, add the corresponding hook
                 add_discord_webhook(item, self.config["webhook_discord"][item])
+
+        yt.devkey = self.config.get("youtube", "dev")
 
         self.pmgr = plugin_manager(
             self,

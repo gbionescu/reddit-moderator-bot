@@ -11,3 +11,7 @@ tzcron
 grpcio
 protobuf
 psycopg2
+base36
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
