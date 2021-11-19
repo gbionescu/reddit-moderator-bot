@@ -13,4 +13,4 @@ RUN apt install -y git curl
 #    libncursesw5-dev tk-dev libxmlsec1-dev libffi-dev python-dev
 
 ADD files/startup.sh /startup.sh
-ADD files/debug.sh /debug.sh
+ADD files/run.sh /run.sh
