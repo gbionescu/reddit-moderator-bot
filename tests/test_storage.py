@@ -38,7 +38,7 @@ def test_stor():
     while True:
         keep_going = False
         for thr in to_wait:
-            if thr.isAlive():
+            if thr.is_alive():
                 keep_going = True
 
         if not keep_going:
