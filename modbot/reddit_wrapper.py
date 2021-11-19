@@ -755,7 +755,7 @@ def new_report(item, author, body):
         return
 
     # Clean up items older than a week
-    for key, val in report_cmds.items():
+    for key, val in list(report_cmds.items()):
         if utcnow() - val["/created_utc"] > timedata.SEC_IN_WEEK:
             del report_cmds[key]
             report_cmds.sync()
