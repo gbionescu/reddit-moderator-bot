@@ -35,6 +35,7 @@ class JSONEncodedDict(TypeDecorator):
 
 class db_data():
     def __init__(self, db_path):
+        return
         self.db_engine = create_engine(db_path, poolclass=StaticPool)
         self.db_factory = sessionmaker(bind=self.db_engine)
         self.db_session = scoped_session(self.db_factory)
