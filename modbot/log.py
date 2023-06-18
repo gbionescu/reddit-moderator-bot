@@ -25,28 +25,50 @@ logmap = {
     loglevel.ERROR: logging.ERROR}
 
 
+def send_to_discord(webhook_url, message, use_quotes=True):
+    """
+    Sends a message to a discord webhook
+    """
+    from discord_webhook import DiscordWebhook
+
+    def quote_message(message):
+        if len(message) == 0:
+            return ""
+        return f"```-\n{message}```"
+
+    chunk_size = 2000 - len("```-\n```")
+
+    while len(message) != 0:
+        quoted = None
+        if use_quotes:
+            quoted = quote_message(message[:chunk_size])
+        else:
+            quoted = message[:chunk_size]
+
+        webhook = DiscordWebhook(webhook_url, content=quoted)
+        webhook.execute()
+        message = message[chunk_size:]
+
 class discord_handler(logging.Handler):
     def send_message(self, record, url):
-        from discord_webhook import DiscordWebhook, DiscordEmbed
-
-        webhook = None
+        # TODO: Disabled embeds
         # If not a multiline error, add embeds
-        if "\n" not in record.message:
-            webhook = DiscordWebhook(url)
-            embed = DiscordEmbed()
-            embed.add_embed_field(
-                name='File', value=record.filename, inline=True)
-            embed.add_embed_field(
-                name='Level', value=record.levelname, inline=True)
-            embed.add_embed_field(
-                name='Message', value=record.message, inline=True)
+        # if "\n" not in record.message:
+        #     webhook = DiscordWebhook(url)
+        #     embed = DiscordEmbed()
+        #     embed.add_embed_field(
+        #         name='File', value=record.filename, inline=True)
+        #     embed.add_embed_field(
+        #         name='Level', value=record.levelname, inline=True)
+        #     embed.add_embed_field(
+        #         name='Message', value=record.message, inline=True)
 
-            # add embed object to webhook
-            webhook.add_embed(embed)
-        else:
-            webhook = DiscordWebhook(url, content=record.message)
+        #     # add embed object to webhook
+        #     webhook.add_embed(embed)
+        # else:
+        message = f"[{record.levelname}] {record.message}"
 
-        webhook.execute()
+        send_to_discord(url, message)
 
     def emit(self, record):
         if self.name in discord_wh:
