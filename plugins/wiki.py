@@ -86,13 +86,14 @@ def init_control_panel(sub_name, plugin_list, sub_dispatcher):
             new_wiki = None
             if page.wiki_page not in sub_dispatcher.get_wiki_list():
                 new_wiki = sub_dispatcher.add_wiki(page)
-            sub_dispatcher.enable_wiki(page.wiki_page)
 
             # Call the wiki notifier with the current content
             if new_wiki and new_wiki.notifier:
                 new_wiki.update_content()
                 new_wiki.notifier(sub_dispatcher.subreddit,
                                   new_wiki.get_change_obj())
+
+            sub_dispatcher.enable_wiki(page.wiki_page)
         else:
             content += "# Current status: Disabled"
             sub_dispatcher.disable_wiki(page.wiki_page)
