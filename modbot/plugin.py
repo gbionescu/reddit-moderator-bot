@@ -59,9 +59,9 @@ class plugin_manager():
         self.db = None
         if db_params:
             print("Connecting to DB")
-            # Create DB connection
-            self.db = db_data(
-                "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
+            # # Create DB connection
+            # self.db = db_data(
+            #     "postgresql+psycopg2://{user}:{password}@{host}/{database}".format(**db_params))
 
         # Fill the standard parameter list
         self.plugin_args["plugin_manager"] = self
@@ -101,7 +101,8 @@ class plugin_manager():
             self.feed_comms,
             self.feed_inbox,
             self.feed_reports,
-            self.feed_modlog)
+            self.feed_modlog,
+            self.feed_modqueue)
 
     def get_subreddit(self, name):
         return get_subreddit(name)
@@ -268,6 +269,21 @@ class plugin_manager():
         disp = self.dispatchers.get(modlog.subreddit_name, None)
         if disp:
             disp.run_modlog(modlog)
+
+    def feed_modqueue(self, modqueue):
+        """
+        Feeds a new modqueue to the plugin framework. This function calls
+        plugins that match the comment.
+
+        :param modqueue: modqueue object
+        """
+
+        self.dispatchers[DISPATCH_ANY].run_modqueue(modqueue)
+
+        disp = self.dispatchers.get(modqueue.subreddit_name, None)
+        if disp:
+            disp.run_modqueue(modqueue)
+
 
     def feed_inbox(self, message):
         """

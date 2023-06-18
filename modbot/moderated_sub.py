@@ -1,5 +1,5 @@
-import logging
 import copy
+from traceback import format_exc
 from modbot import utils
 from modbot.log import botlog
 from modbot.wiki_page import WatchedWiki
@@ -7,6 +7,7 @@ from modbot.hook import callback_type
 from modbot.storage import get_stored_dict
 from modbot.utils import BotThread, cron_next
 logger = botlog("mod_sub")
+exception = botlog("exception")
 
 
 class DispatchAll():
@@ -16,6 +17,7 @@ class DispatchAll():
             self.callbacks_subs = []
             self.callbacks_coms = []
             self.callbacks_mlog = []
+            self.callbacks_mqueue = []
             self.callbacks_onstart = []
             self.callbacks = []
             self.to_call = to_call
@@ -33,6 +35,9 @@ class DispatchAll():
             elif func.ctype == callback_type.MLG:
                 self.callbacks_mlog.append(func)
 
+            elif func.ctype == callback_type.MQU:
+                self.callbacks_mqueue.append(func)
+
             elif func.ctype == callback_type.PER:
                 self.callbacks_peri.append(func)
                 if func.last_exec == 0:
@@ -44,7 +49,7 @@ class DispatchAll():
             elif func.ctype == callback_type.ONS:
                 self.callbacks_onstart.append(func)
             else:
-                logger.error("Unhandled function type: " + str(func.ctype))
+                exception.error("Unhandled function type: " + str(func.ctype))
 
         def run_on_start(self, with_thread=False):
             for cbk in self.callbacks_onstart:
@@ -62,6 +67,9 @@ class DispatchAll():
 
             # Merge modlog items
             self.callbacks_mlog.extend(cont.callbacks_mlog)
+
+            # Merge modqueue items
+            self.callbacks_mqueue.extend(cont.callbacks_mqueue)
 
             # Merge on start
             self.callbacks_onstart.extend(cont.callbacks_onstart)
@@ -122,6 +130,13 @@ class DispatchAll():
             for cbk in self.callbacks_mlog:
                 self.to_call(cbk, False, {**self.extra_args, **extra_args})
 
+        def run_modqueue(self, modlog, extra_args):
+            """
+            Run all modqueue items
+            """
+            for cbk in self.callbacks_mqueue:
+                self.to_call(cbk, False, {**self.extra_args, **extra_args})
+
     def __repr__(self):
         return "generic"
 
@@ -161,15 +176,16 @@ class DispatchAll():
                 if farg in args.keys():
                     cargs[farg] = args[farg]
                 else:
-                    logger.error("Function %s requested %s, but it was not found in %s" %
+                    exception.error("Function %s requested %s, but it was not found in %s" %
                                  (element.func, farg, str(args.keys())))
                     return
 
             try:
                 element.func(**cargs)
             except Exception:
-                logging.exception(
-                    "Exception when running " + str(element.func))
+                import traceback
+                exception.exception(
+                    "Exception: " + traceback.format_exc())
         if with_thread:
             BotThread(
                 name="periodic_" + str(el.func),
@@ -267,6 +283,14 @@ class DispatchAll():
 
         self.generic_hooks.run_modlog(modlog, extra)
         self.enabled_wiki_hooks.run_modlog(modlog, extra)
+
+    def run_modqueue(self, modqueue):
+        extra = {
+            "modqueue": modqueue,
+            "subreddit_name": modqueue.subreddit_name}
+
+        self.generic_hooks.run_modqueue(modqueue, extra)
+        self.enabled_wiki_hooks.run_modqueue(modqueue, extra)
 
 
 class DispatchSubreddit(DispatchAll):
