@@ -1,11 +1,8 @@
-import traceback
-import time
 import base36
 import importlib
 from modbot.log import botlog, loglevel
-from modbot.utils import utcnow, timedata, BotThread, get_utcnow
+from modbot.utils import utcnow, timedata, BotThread, get_utcnow, timestamp_to_datetime
 from modbot.storage import dsdict, get_stored_dict
-from modbot.input.rpc_server import create_server
 
 logger = botlog("reddit_wrapper", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
@@ -29,6 +26,10 @@ modlog_hist = None
 last_moderator_subs_check = 0
 moderator_subs_list = []
 
+COMMENT_PREFIX = "t1_"
+SUBMISSION_PREFIX = "t3_"
+SUBMISSION_PREFIX = "t3_"
+
 COLD_WIKI_LIMIT = timedata.SEC_IN_MIN * 5
 update_intervals = {
     "inbox_update": 10,
@@ -37,7 +38,58 @@ update_intervals = {
 }
 
 
-class submission():
+class BaseThing():
+    @property
+    def subreddit_name(self):
+        return self._raw.subreddit.display_name
+
+    @property
+    def subreddit(self):
+        try:
+            return get_subreddit(self._raw.subreddit.display_name)
+        except:
+            logger.debug("Could not get subreddit %s" %
+                         self._raw.subreddit.display_name)
+
+    @property
+    def id(self):
+        return self._raw.id
+
+    @property
+    def user_reports(self):
+        reports = self._raw.user_reports
+
+        to_return = []
+        for description, count, _, _ in reports:
+
+            for _ in range(count):
+                to_return.append((description))
+
+        return to_return
+
+    @property
+    def created_utc(self):
+        return self._raw.created_utc
+
+    @property
+    def author(self):
+        try:
+            if self._raw.author:
+                return user(self._raw.author)
+            else:
+                return None
+        except:
+            return None
+
+    @property
+    def created_utc_as_datetime(self):
+        return timestamp_to_datetime(self._raw.created_utc)
+
+    @property
+    def permalink(self):
+        return f"https://reddit.com{self._raw.permalink}"
+
+class submission(BaseThing):
     """
     Class that encapsulates a PRAW submission
     """
@@ -53,38 +105,12 @@ class submission():
         self._raw.flair.select(flair_id)
 
     @property
-    def subreddit_name(self):
-        return self._raw.subreddit.display_name
-
-    @property
-    def subreddit(self):
-        try:
-            return get_subreddit(self._raw.subreddit.display_name)
-        except:
-            logger.debug("Could not get subreddit %s" %
-                         self._raw.subreddit.display_name)
-
-    @property
     def shortlink(self):
         return self._raw.shortlink
 
     @property
     def title(self):
         return self._raw.title
-
-    @property
-    def created_utc(self):
-        return self._raw.created_utc
-
-    @property
-    def author(self):
-        try:
-            if self._raw.author:
-                return user(self._raw.author)
-            else:
-                return None
-        except:
-            return None
 
     @property
     def is_crosspostable(self):
@@ -105,10 +131,6 @@ class submission():
     @property
     def domain(self):
         return self._raw.domain
-
-    @property
-    def id(self):
-        return self._raw.id
 
     def report(self, reason):
         audit.debug("[%s] Reported with reason: %s" % (self, reason))
@@ -134,6 +156,10 @@ class submission():
     def stickied(self):
         return self._raw.stickied
 
+    @property
+    def num_comments(self):
+        return len(self._raw.comments)
+
     def make_sticky(self):
         self._raw.mod.sticky(state=True, bottom=True)
 
@@ -141,10 +167,18 @@ class submission():
         """
         Delete the submission.
         """
+        audit.debug("[comment] Removed %s" % (self.permalink))
         self._raw.mod.remove(spam=spam, reason_id=reason_id)
 
+    def approve(self):
+        """
+        Approve submission.
+        """
+        audit.debug("[comment] Approved %s" % (self.permalink))
+        self._raw.mod.approve()
 
-class comment():
+
+class comment(BaseThing):
     """
     Class that encapsulates a PRAW comment
     """
@@ -153,28 +187,22 @@ class comment():
         self._raw = reddit_comm
 
     @property
-    def subreddit_name(self):
-        return self._raw.subreddit.display_name
-
-    @property
-    def subreddit(self):
-        return get_subreddit(self._raw.subreddit.display_name)
-
-    @property
-    def id(self):
-        return self._raw.id
-
-    @property
-    def permalink(self):
-        return self._raw.permalink
-
-    @property
     def body(self):
         return self._raw.body
 
-    @property
-    def author(self):
-        return self._raw.author
+    def delete(self):
+        """
+        Delete the comment.
+        """
+        audit.debug("[comment] Removed %s" % (self.permalink))
+        self._raw.mod.remove()
+
+    def approve(self):
+        """
+        Approve comment.
+        """
+        audit.debug("[comment] Approved %s" % (self.permalink))
+        self._raw.mod.approve()
 
 
 class wiki():
@@ -361,6 +389,10 @@ class user():
     def name(self):
         return self.username
 
+    @property
+    def permalink(self):
+        return f"https://reddit.com/u/{self._raw.name}"
+
 
 class inboxmessage():
     """
@@ -371,7 +403,6 @@ class inboxmessage():
         self._raw = msg
         self.body = msg.body
         self.author = user(msg.author)
-
 
 class report():
     """
@@ -391,7 +422,6 @@ class report():
     @property
     def subreddit_name(self):
         return self._raw.subreddit.display_name
-
 
 class BotFeeder():
     """
@@ -568,7 +598,54 @@ class modlog():
         self.subreddit_name = self._raw.subreddit
         self.action = self._raw.action
         self.target_permalink = self._raw.target_permalink
+        self.target_fullname = self._raw.target_fullname
 
+
+class modqueue():
+    def __init__(self, modq_item):
+        self._raw = modq_item
+        self.subreddit_name = self._raw.subreddit.display_name
+
+        self.mod_name = self._raw.banned_by
+        if self._raw.banned_by == True:
+            self.mod_name = "reddit"
+
+        self.details = getattr(self._raw, "ban_note", None)
+        self.action = self._raw.approved
+        if self._raw.approved == False:
+            self.action = "False"
+
+        self.target_permalink = self._raw.permalink
+        self.target_fullname = self._raw.fullname
+
+        original_item = get_item(self._raw.fullname)
+        self.target_author = None
+        if original_item.author:
+            self.target_author = original_item.author.name
+
+        self.item_type = None
+        if self._raw.name.startswith(COMMENT_PREFIX):
+            self.item_type = comment(self._raw)
+        elif self._raw.name.startswith(SUBMISSION_PREFIX):
+            self.item_type = submission(self._raw)
+
+    @property
+    def banned_by(self):
+        if self._raw.banned_by:
+            return user(get_user(self._raw.banned_by))
+
+        return None
+
+    @property
+    def permalink(self):
+        return self.item_type.permalink
+
+def scrape_modqueue(subreddit_name):
+    """
+    Scrape the modqueue for a subreddit
+    """
+    for item in backend.get_all_modqueue(subreddit_name):
+        yield modqueue(item)
 
 def get_bot_account_name():
     """
@@ -678,6 +755,18 @@ def get_moderators_for_sub(sub):
 
     return mods
 
+def get_item(item_id):
+    """
+    Gets an item by id.
+    ID needs to contain the type: i.e. t1_1234
+    """
+    items = backend.get_reddit().info([item_id])
+    # return immediately as we requested only one item
+    for item in items:
+        if type(item) == backend.praw.models.Comment:
+            return comment(item)
+        elif type(item) == backend.praw.models.Submission:
+            return submission(item)
 
 def get_comment(id):
     return comment(backend.get_reddit().comment(id=id))
@@ -794,21 +883,27 @@ def new_modlog_item(item):
         del modlog_hist[key]
 
 
-def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
+def new_modqueue_item(item):
+    modqueue_feeder(modqueue(item))
+
+
+def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func, modqueue_func):
     global sub_feeder
     global com_feeder
     global inbox_feeder
     global report_feeder
     global modlog_feeder
+    global modqueue_feeder
     global rpc_server
 
     # Initialize feeder classes
-    sub_feeder = BotFeeder(all_data, "t3_", sub_func, submission, 10, 99)
-    com_feeder = BotFeeder(all_data, "t1_", comm_func, comment, 10, 99)
+    sub_feeder = BotFeeder(all_data, SUBMISSION_PREFIX, sub_func, submission, 10, 99)
+    com_feeder = BotFeeder(all_data, COMMENT_PREFIX, comm_func, comment, 10, 99)
 
     inbox_feeder = inbox_func
     report_feeder = report_func
     modlog_feeder = modlog_func
+    modqueue_feeder = modqueue_func
 
     logger.debug("Watching all")
     BotThread(
@@ -831,8 +926,10 @@ def watch_all(sub_func, comm_func, inbox_func, report_func, modlog_func):
         target=backend.thread_modlog,
         args=(new_modlog_item,))
 
-    # Create RPC server
-    rpc_server = create_server(inbox_func)
+    BotThread(
+        name="modqueue_thread",
+        target=backend.thread_modqueue,
+        args=(new_modqueue_item,))
 
 
 def check_inbox(tnow):
