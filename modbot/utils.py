@@ -62,6 +62,12 @@ def timestamp_string(timestamp):
 
     return date.strftime("%Y-%m-%d / %H:%M:%S") + " " + str(date.tzinfo)
 
+def timestamp_to_datetime(timestamp):
+    """
+    Converts a timestamp to python datetime
+    """
+    return pytz.utc.localize(datetime.datetime.fromtimestamp(timestamp))
+
 def date():
     """
     Returns current date as formatted string
@@ -132,3 +138,17 @@ def cron_next(param):
 
     # Return when the next trigger will happen in seconds
     return (next_dt - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
+
+
+def remove_quotes(s):
+    """
+    Remove beginning/ending quotes from a string
+    """
+
+    if s.startswith('"') and s.endswith('"'):
+        return s[1:-1]
+
+    if s.startswith("'") and s.endswith("'"):
+        return s[1:-1]
+
+    return s
