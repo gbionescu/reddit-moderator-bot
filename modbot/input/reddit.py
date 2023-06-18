@@ -11,6 +11,7 @@ praw_user_agent = None
 praw_inst = {}  # Dictionary of praw sessions
 logger = botlog("redditinput", console_level=loglevel.DEBUG)
 audit = botlog("audit", console_level=loglevel.DEBUG)
+idfeeder = botlog("idfeeder", console_level=loglevel.DEBUG)
 
 
 class Thing():
@@ -91,7 +92,7 @@ def thread_sub(feeder):
         #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
         sub_id = get_item()
         if sub_id:
-            audit.debug("Feeding sub ID %s" % sub_id)
+            idfeeder.debug("Feeding sub ID %s" % sub_id)
             feeder.set_initial(Thing(sub_id))
             first_set = True
         else:
@@ -105,7 +106,7 @@ def thread_sub(feeder):
         #sub_id = get_reddit_object("https://www.reddit.com/r/all/new.json")
         sub_id = get_item()
         if sub_id:
-            audit.debug("Feeding sub ID %s" % sub_id)
+            idfeeder.debug("Feeding sub ID %s" % sub_id)
             feeder.new_all_object(Thing(sub_id))
 
 
@@ -182,8 +183,44 @@ def thread_modlog(modlog_func):
             traceback.print_exc()
 
         # If a loop happens, sleep for a bit
-        time.sleep(5)
+        time.sleep(30)
 
+
+def thread_modqueue(modlog_func, target='mod'):
+    """
+    Watch modlog and trigger events
+    """
+    while True:
+        session = get_reddit()
+        try:
+            # Feed all modlog
+            for item in session.subreddit(target).mod.modqueue():
+                modlog_func(item)
+
+        except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+            print('PRAW exception ' + str(e))
+            session = get_reddit("reports", True)
+
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+        # If a loop happens, sleep for a bit
+        time.sleep(30)
+
+def get_all_modqueue(target):
+    session = get_reddit()
+    try:
+        # Feed all modlog
+        for item in session.subreddit(target).mod.modqueue(limit=None):
+            yield item
+
+    except (praw.exceptions.PRAWException, prawcore.exceptions.PrawcoreException) as e:
+        print('PRAW exception ' + str(e))
+
+    except Exception:
+        import traceback
+        traceback.print_exc()
 
 def get_wiki(subreddit, wiki_name):
     data = subreddit.wiki[wiki_name]
