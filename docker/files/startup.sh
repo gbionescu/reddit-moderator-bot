@@ -14,6 +14,7 @@ pyenv install -s 3.9.6
 pyenv global 3.9.6
 
 cd /botsrc/
+pip3 install --upgrade pip
 pip3 install -r requirements.txt --upgrade
 
 while true; do timeout 24h python3.9 moderator-bot.py || sleep 1; done
