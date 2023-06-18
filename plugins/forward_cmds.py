@@ -1,5 +1,7 @@
-import datetime
 from modbot import hook
+from modbot.log import botlog
+
+logger = botlog("cmd_forwarder")
 
 
 @hook.command(raw=True)
@@ -11,10 +13,7 @@ def fwd_things(event, bot_owner, is_report):
         return
 
     if not is_report:
-        bot_owner.send_pm(
-            "Message received from %s" % event.author,
-            "Content: %s" % event.body)
+        logger.debug(
+            f"Message received from {event.author}\nContent: {event.body}")
     else:
-        bot_owner.send_pm(
-            "Report command received from %s" % (event.author),
-            "Content: %s\n\nLink: %s" % (event.body, event.permalink))
+        logger.debug(f"Report command received from {event.author}\n\nContent: {event.body}\n\nLink: {event.permalink}")
