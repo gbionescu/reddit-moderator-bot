@@ -1,11 +1,12 @@
 import configparser
 import os
 import sys
-import modbot.ytaccess as yt
 
+import modbot.ytaccess as yt
 from modbot.log import add_discord_webhook
 from modbot.plugin import plugin_manager
 from modbot.reddit_wrapper import set_credentials, set_input_type, set_signature
+from modbot.api import start_server
 
 class bot():
     def __init__(self, bot_config_path, backend="reddit"):
@@ -55,3 +56,6 @@ class bot():
             master_subreddit=self.config.get(
                 section="config", option="master_subreddit"),
             db_params=db_credentials)
+
+        # Start the web server
+        start_server()
