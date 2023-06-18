@@ -6,7 +6,7 @@ from modbot.storage import dsdict
 logger = botlog("wiki_page")
 EMPTY_WIKI = ""
 
-RECENT_EDIT_LIMIT = utils.timedata.SEC_IN_MIN * 2
+RECENT_EDIT_LIMIT = 30
 
 # TODO: merge this class with reddit_wrapper.py/wiki
 
